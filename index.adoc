@@ -1,0 +1,21 @@
+= Slow-Auto, Inconvenient-Semi
+
+**escaping false dichotomy with sanely-automatic derivation**
+
+---
+
+Mateusz Kubuszok
+
+== About me
+
+[%step]
+* breaking things in Scala for 9 years
+* a little bit of open source - including co-authoring Chimney for almost 7 years now
+* blog at https://kubuszok.com[Kubuszok.com]
+* niche https://leanpub.com/jvm-scala-book[Things you need to know about JVM (that matter in Scala)] ebook
+
+[NOTE.speaker]
+--
+--
+
+== Thank you !
