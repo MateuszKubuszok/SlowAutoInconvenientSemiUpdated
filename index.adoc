@@ -18,4 +18,386 @@ Mateusz Kubuszok
 --
 --
 
+== Agenda
+
+TODO
+
+== (De)motivating example
+
+=== !
+
+[source, scala]
+--
+final case class In1(int: Int)
+final case class In2(i11: In1, i12: In1)
+final case class In3(i21: In2, i22: In2, i23: In2)
+final case class In4(i31: In3, i32: In3, i33: In3, i34: In3)
+final case class In5(i41: In4, i42: In4, i43: In4, i44: In4, i45: In4)
+final case class Out(i1: In5, i2: In5, i3: In5, i4: In5, i5: In5, i6: In5)
+--
+
+[%step%]
+[source, scala]
+--
+import io.circe.{Decoder, Json}
+import io.circe.generic.auto._ // <- this is important
+import io.circe.syntax._
+--
+
+[%step%]
+[source, scala]
+--
+def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
+  val json = out.asJson
+  val parsed = json.as[Out]
+  json -> parsed
+}
+--
+
+[NOTE.speaker]
+--
+TODO
+--
+
+=== !
+
+[source]
+--
+sbt --no-server circeGenericAuto/clean     "show circeGenericAuto/name"     circeGenericAuto/compile
+[info] welcome to sbt 1.10.1 (GraalVM Community Java 22.0.2)
+...
+[success] Total time: 0 s, completed Sep 5, 2024, 11:21:31 AM
+[info] circeGenericAuto
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-auto/target/jvm-2.13/classes ...
+[success] Total time: 15 s, completed Sep 5, 2024, 11:21:46 AM
+
+sbt --no-server circeGenericAuto3/clean    "show circeGenericAuto3/name"    circeGenericAuto3/compile
+[info] welcome to sbt 1.10.1 (GraalVM Community Java 22.0.2)
+...
+[success] Total time: 0 s, completed Sep 5, 2024, 11:21:59 AM
+[info] circeGenericAuto
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-auto/target/jvm-3/classes ...
+[success] Total time: 49 s, completed Sep 5, 2024, 11:22:48 AM
+--
+
+[NOTE.speaker]
+--
+TODO
+Scala 2 vs Scala 3
+--
+
+=== !
+
+[source]
+--
+sbt
+... a lot of compilations for warmup
+> circeGenericAuto/clean     "show circeGenericAuto/name"     circeGenericAuto/compile
+[success] Total time: 0 s, completed Sep 5, 2024, 3:52:49 PM
+[info] circeGenericAuto
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-auto/target/jvm-2.13/classes ...
+[success] Total time: 7 s, completed Sep 5, 2024, 3:52:55 PM
+> circeGenericAuto3/clean    "show circeGenericAuto3/name"    circeGenericAuto3/compile
+[success] Total time: 0 s, completed Sep 5, 2024, 3:52:56 PM
+[info] circeGenericAuto
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-auto/target/jvm-3/classes ...
+[success] Total time: 22 s, completed Sep 5, 2024, 3:53:17 PM
+--
+
+[NOTE.speaker]
+--
+TODO
+Scala 2 vs Scala 3
+--
+
+=== !
+
+[source, scala]
+--
+import io.circe.{Decoder, Encoder, Json}
+import io.circe.generic.semiauto._ // <- this is important
+import io.circe.syntax._
+--
+
+[%step%]
+[source, scala]
+--
+implicit val in1Decoder: Decoder[In1] = deriveDecoder
+implicit val in1Encoder: Encoder[In1] = deriveEncoder
+implicit val in2Decoder: Decoder[In2] = deriveDecoder
+implicit val in2Encoder: Encoder[In2] = deriveEncoder
+implicit val in3Decoder: Decoder[In3] = deriveDecoder
+implicit val in3Encoder: Encoder[In3] = deriveEncoder
+implicit val in4Decoder: Decoder[In4] = deriveDecoder
+implicit val in4Encoder: Encoder[In4] = deriveEncoder
+implicit val in5Decoder: Decoder[In5] = deriveDecoder
+implicit val in5Encoder: Encoder[In5] = deriveEncoder
+implicit val outDecoder: Decoder[Out] = deriveDecoder
+implicit val outEncoder: Encoder[Out] = deriveEncoder
+
+def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
+  val json = out.asJson
+  val parsed = json.as[Out]
+  json -> parsed
+}
+--
+
+=== !
+
+[source]
+--
+sbt --no-server circeGenericSemi/clean     "show circeGenericSemi/name"     circeGenericSemi/compile
+[info] welcome to sbt 1.10.1 (GraalVM Community Java 22.0.2)
+...
+[success] Total time: 0 s, completed Sep 5, 2024, 11:23:01 AM
+[info] circeGenericSemi
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/target/jvm-2.13/classes ...
+[success] Total time: 14 s, completed Sep 5, 2024, 11:23:15 AM
+
+sbt --no-server circeGenericSemi3/clean    "show circeGenericSemi3/name"    circeGenericSemi3/compile
+[info] welcome to sbt 1.10.1 (GraalVM Community Java 22.0.2)
+...
+[success] Total time: 0 s, completed Sep 5, 2024, 11:23:28 AM
+[info] circeGenericSemi
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/target/jvm-3/classes ...
+[success] Total time: 11 s, completed Sep 5, 2024, 11:23:39 AM
+--
+
+=== !
+
+[source]
+--
+sbt --no-server circeGenericSemi/clean     "show circeGenericSemi/name"     circeGenericSemi/compile
+[info] welcome to sbt 1.10.1 (GraalVM Community Java 22.0.2)
+...
+[success] Total time: 0 s, completed Sep 5, 2024, 11:23:01 AM
+[info] circeGenericSemi
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/target/jvm-2.13/classes ...
+[success] Total time: 14 s, completed Sep 5, 2024, 11:23:15 AM
+
+sbt --no-server circeGenericSemi3/clean    "show circeGenericSemi3/name"    circeGenericSemi3/compile
+[info] welcome to sbt 1.10.1 (GraalVM Community Java 22.0.2)
+...
+[success] Total time: 0 s, completed Sep 5, 2024, 11:23:28 AM
+[info] circeGenericSemi
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/target/jvm-3/classes ...
+[success] Total time: 11 s, completed Sep 5, 2024, 11:23:39 AM
+--
+
+=== !
+
+[source]
+--
+sbt
+... a lot of compilations for warmup
+> circeGenericSemi/clean     "show circeGenericSemi/name"     circeGenericSemi/compile
+[success] Total time: 0 s, completed Sep 5, 2024, 3:53:18 PM
+[info] circeGenericSemi
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/target/jvm-2.13/classes ...
+[success] Total time: 4 s, completed Sep 5, 2024, 3:53:21 PM
+> circeGenericSemi3/clean    "show circeGenericSemi3/name"    circeGenericSemi3/compile
+[success] Total time: 0 s, completed Sep 5, 2024, 3:53:22 PM
+[info] circeGenericSemi
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/target/jvm-3/classes ...
+[success] Total time: 2 s, completed Sep 5, 2024, 3:53:24 PM
+--
+
+=== !
+
+a tutaj benchmarki
+
+== How it actually works?
+
+TODO
+- implicity
+- shapeless
+- debugowanie tego
+- error messages :P
+
+== Magnolia
+
+=== !
+
+[source, scala]
+--
+// actual code  based on https://github.com/vpavkin/circe-magnolia/
+import magnolia1._
+import scala.language.experimental.macros
+
+trait MagnoliaDecoder {
+  def join[T](caseClass: CaseClass[Decoder, T]): Decoder[T] = ...
+  def split[T](sealedTrait: SealedTrait[Decoder, T]): Decoder[T] = ...
+}
+
+object DecoderSemi extends MagnoliaDecoder {
+  type Typeclass[A] = Decoder[A]
+  def derived[T]: Typeclass[T] = macro Magnolia.gen[T]
+}
+
+object DecoderAuto extends MagnoliaDecoder {
+  type Typeclass[A] = Decoder[A]
+  implicit def derivedDecoder[T]: Typeclass[T] = macro Magnolia.gen[T]
+}
+--
+
+[source, scala]
+--
+// same for Encoders
+--
+
+[NOTE.speaker]
+--
+Mention that I haven't found an up to-date magnolia derivation for Circe
+--
+
+=== !
+
+[source, scala]
+--
+// actual code based on https://github.com/vpavkin/circe-magnolia/
+import magnolia1.*
+import scala.deriving.Mirror
+
+trait MagnoliaDecoder extends Derivation[Decoder] {
+  def join[T](caseClass: CaseClass[Decoder, T]): Decoder[T] = ...
+  def split[T](sealedTrait: SealedTrait[Decoder, T]): Decoder[T] = ...
+}
+
+object DecoderSemi extends MagnoliaDecoder
+
+object DecoderAuto extends MagnoliaDecoder {
+  // I used implicit instead of given for easier cross-compilation
+  implicit inline def deriveDecoder[A](implicit m: Mirror.Of[A]): Decoder[A] =
+    derived
+}
+--
+
+[source, scala]
+--
+// same for Encoders
+--
+
+=== !
+
+[source, scala]
+--
+import DecoderAuto._ // <- our Magnolia-based derivation
+import EncoderAuto._ // <- our Magnolia-based derivation
+import io.circe.Decoder.Result
+import io.circe.Json
+import io.circe.syntax._
+--
+
+[source, scala]
+--
+def roundTrip(out: Out): (Json, Result[Out]) = {
+  val json = out.asJson
+  val parsed = json.as[Out]
+  json -> parsed
+}
+--
+
+=== !
+
+[source]
+--
+[error] Error while emitting example/CirceMagnoliaAuto$
+[error] Class too large: example/CirceMagnoliaAuto$
+[error] one error found
+--
+
+[NOTE.speaker]
+--
+Magnolia-based autoderivation in Scala 3 crashed the compiler xD
+--
+
+=== !
+
+[source, scala]
+--
+object EncodeHelper {
+  def encode(out: Out): Json = out.asJson
+}
+
+object DecoderHelper {
+  def decode(json: Json): Result[Out] = json.as[Out]
+}
+--
+
+[source, scala]
+--
+def roundTrip(out: Out): (Json, Result[Out]) = {
+  val json = EncodeHelper.encode(out)
+  val parsed = DecoderHelper.decode(json)
+  json -> parsed
+}
+--
+
+=== !
+
+[source]
+--
+sbt --no-server circeMagnoliaAuto/clean    "show circeMagnoliaAuto/name"    circeMagnoliaAuto/compile
+[info] welcome to sbt 1.10.1 (GraalVM Community Java 22.0.2)
+...
+[success] Total time: 0 s, completed Sep 5, 2024, 11:23:52 AM
+[info] circeMagnoliaAuto
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-magnolia-auto/target/jvm-2.13/classes ...
+[success] Total time: 15 s, completed Sep 5, 2024, 11:24:07 AM
+
+sbt --no-server circeMagnoliaAuto3/clean   "show circeMagnoliaAuto3/name"   circeMagnoliaAuto3/compile
+[info] welcome to sbt 1.10.1 (GraalVM Community Java 22.0.2)
+...
+[success] Total time: 0 s, completed Sep 5, 2024, 11:24:20 AM
+[info] circeMagnoliaAuto
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-magnolia-auto/target/jvm-3/classes ...
+[success] Total time: 56 s, completed Sep 5, 2024, 11:25:16 AM
+--
+
+[NOTE.speaker]
+--
+Magnolia on Scala 3 is painfully slow - because it's just a wrapper around mirrors
+--
+
+=== !
+
+[source]
+--
+sbt
+... a lot of compilations for warmup
+> circeMagnoliaAuto/clean    "show circeMagnoliaAuto/name"    circeMagnoliaAuto/compile
+[success] Total time: 0 s, completed Sep 5, 2024, 3:53:24 PM
+[info] circeMagnoliaAuto
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-magnolia-auto/target/jvm-2.13/classes ...
+[success] Total time: 3 s, completed Sep 5, 2024, 3:53:27 PM
+> circeMagnoliaAuto3/clean   "show circeMagnoliaAuto3/name"   circeMagnoliaAuto3/compile
+[success] Total time: 0 s, completed Sep 5, 2024, 3:53:27 PM
+[info] circeMagnoliaAuto
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-magnolia-auto/target/jvm-3/classes ...
+[success] Total time: 37 s, completed Sep 5, 2024, 3:54:04 PM
+--
+
+[NOTE.speaker]
+--
+Even hot jvm doesn't help much with overhead of Magnolia on Scala 3.
+
+Mention Spotify's libraries with instances derived with Magnolia - https://github.com/spotify/magnolify - and that they probably should know that their Scala 3 performance might be really bad.
+--
+
+== JSONs from a different angle
+
+=== !
+
+kod przykładu
+
+jsoniter
+- tylko semiauto
+- jakieś metody a ale nie extension methods
+- żeby to semiauto za bardzo nie bolało to semi jest rekurencyjne
+- instancje type classy nadpisują zachowanie ale nie są używane do dostarczania domyślnych instancji
+
+=== !
+
+benchmarki
+
 == Thank you !
