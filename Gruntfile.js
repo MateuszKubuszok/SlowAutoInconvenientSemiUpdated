@@ -49,7 +49,17 @@ module.exports = function(grunt) {
           sourceMap: true
         },
         files: {
-          'reveal.js/dist/theme/black.css': 'css/theme/source/black.scss'
+          'reveal.js/dist/theme/beige.css': 'css/theme/source/beige.scss',
+          'reveal.js/dist/theme/black.css': 'css/theme/source/black.scss',
+          'reveal.js/dist/theme/blood.css': 'css/theme/source/blood.scss',
+          'reveal.js/dist/theme/league.css': 'css/theme/source/league.scss',
+          'reveal.js/dist/theme/moon.css': 'css/theme/source/moon.scss',
+          'reveal.js/dist/theme/night.css': 'css/theme/source/night.scss',
+          'reveal.js/dist/theme/serif.css': 'css/theme/source/serif.scss',
+          'reveal.js/dist/theme/simple.css': 'css/theme/source/simple.scss',
+          'reveal.js/dist/theme/sky.css': 'css/theme/source/sky.scss',
+          'reveal.js/dist/theme/solarized.css': 'css/theme/source/solarized.scss',
+          'reveal.js/dist/theme/white.css': 'css/theme/source/white.scss'
         }
       }
     },

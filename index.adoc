@@ -1,3 +1,8 @@
+// 35 minutes
+:revealjs_totalTime: 2100
+:revealjs_theme: serif
+:revealjs_help: true
+
 = Slow-Auto, Inconvenient-Semi
 
 **escaping false dichotomy with sanely-automatic derivation**
@@ -22,106 +27,309 @@ Mateusz Kubuszok
 
 TODO
 
+=== Examples
+
+image::img/qr-code.png[Link to examples,40%,40%]
+
+https://github.com/MateuszKubuszok/derivation-benchmarks
+
+[NOTE.speaker]
+--
+We cannot afford to have a study each example in deep, since it could take a whole day, so as a homework or an excercise for the reader here's the link.
+--
+
 == (De)motivating example
+
+=== Type class
+
+[source, scala]
+--
+// from Circe
+trait Encoder[A] {
+
+  def apply(a: A): Json
+}
+--
+
+[%step]
+[source, scala]
+--
+// from Circe
+trait Decoder[A] extends Serializable {
+
+  def apply(c: HCursor): Decoder.Result[A]
+
+  final def decodeJson(j: Json): Decoder.Result[A] = apply(HCursor.fromJson(j))
+}
+--
+
+[%step]
+[source, scala]
+--
+// our own invention
+trait FastShowPretty[A] {
+
+  def showPretty(
+    value:   A,
+    sb:      StringBuilder,
+    indent:  String = "  ",
+    nesting: Int = 0
+  ): StringBuilder
+}
+--
+
+[NOTE.speaker]
+--
+Examples of type classes, used like this (next slide).
+--
 
 === !
 
 [source, scala]
 --
-final case class In1(int: Int)
-final case class In2(i11: In1, i12: In1)
-final case class In3(i21: In2, i22: In2, i23: In2)
-final case class In4(i31: In3, i32: In3, i33: In3, i34: In3)
+// Circe's extension method
+val value: List[String]
+val json: Json = value.asJson // implicit Encoder[List[String]]
+--
+
+[%step]
+[source, scala]
+--
+// Json's build-in method
+val json: Json
+val value: List[String] = json.as[List[String]] // implicit Decoder[List[String]]
+--
+
+[%step]
+[source, scala]
+--
+// our own extension method
+val value: List[String]
+val string: String = value.showPretty() // implicit FastShowPretty[List[String]]
+--
+
+[NOTE.speaker]
+--
+What when there is no predefined type class instance?
+--
+
+=== Type class derivation
+
+[%step]
+* there are some build-in instances
+* there is a way of combining instances for each field
+  into an instance for a whole `case class`
+* there is a way of combining instances for each subtype
+  into an instance for a whole `sealed` type
+
+[NOTE.speaker]
+--
+* e.g. handling primitives for JSON
+* e.g. treating each `case class` field as JSON object field
+* e.g. using discriminating value in JSON
+--
+
+=== Exhibit A(utomatic)
+
+[source, scala]
+--
+final case class In1(int: Int) // e.g. { "int": 1 }
+final case class In2(i11: In1, i12: In1) // e.g. { "i11": { "int": 1 }, ... }
+final case class In3(i21: In2, i22: In2, i23: In2) // { e.g. "i21": { "i11": ..., ... }, ... }
+final case class In4(i31: In3, i32: In3, i33: In3, i34: In3) // etc
 final case class In5(i41: In4, i42: In4, i43: In4, i44: In4, i45: In4)
-final case class Out(i1: In5, i2: In5, i3: In5, i4: In5, i5: In5, i6: In5)
+final case class Out(i1:  In5, i2:  In5, i3:  In5, i4:  In5, i5:  In5, i6:  In5)
 --
 
-[%step%]
 [source, scala]
 --
-import io.circe.{Decoder, Json}
-import io.circe.generic.auto._ // <- this is important
-import io.circe.syntax._
+import io.circe.Decoder.Result
+import io.circe.Json
+import io.circe.generic.auto.* // <-- magic happens here
+import io.circe.syntax.*
+
+def roundTrip(out: Out): (Json, Result[Out]) = {
+  val json = out.asJson // implicit Encoder[Out]
+  val parsed = json.as[Out] // implicit Decoder[Out]
+  json -> parsed
+}
 --
 
-[%step%]
+=== !
+
+[%step]
 [source, scala]
 --
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
+circe-generic-auto/target/jvm-2.13/classes ...
+[success] Total time: 14 s, completed Sep 7, 2024, 9:37:00 PM
+--
+
+[%step]
+[source, scala]
+--
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
+circe-generic-auto/target/jvm-2.13/classes ...
+[success] Total time: 4 s, completed Sep 7, 2024, 9:37:00 PM
+--
+
+
+[%step]
+[source, scala]
+--
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
+circe-generic-auto/target/jvm-3/classes ...
+[success] Total time: 46 s, completed Sep 7, 2024, 9:37:00 PM
+--
+
+[%step]
+[source, scala]
+--
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
+circe-generic-auto/target/jvm-3/classes ...
+[success] Total time: 16 s, completed Sep 7, 2024, 9:37:00 PM
+--
+
+[NOTE.speaker]
+--
+* cold, Scala 2
+* hot, Scala 2
+* cold, Scala 3
+* hot, Scala 3
+
+What tribal knowledge recommends in such situation? Semi-automatic derivation!
+--
+
+[transition=slide-in fade-out, %notitle]
+=== Semi-automatic
+
+[source, scala]
+--
+import io.circe.{Decoder, Encoder, Json}
+import io.circe.generic.semiauto.* // <-- utilities come from here
+import io.circe.syntax.*
+
+// compilation error - missing implicits for Decoder[In5], Encoder[In5]!!!
+implicit val outDecoder: Decoder[Out] = deriveDecoder
+implicit val outEncoder: Encoder[Out] = deriveEncoder
 def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
-  val json = out.asJson
-  val parsed = json.as[Out]
+  val json = out.asJson // implicit Encoder[Out]
+  val parsed = json.as[Out] // implicit Decoder[Out]
   json -> parsed
 }
 --
 
 [NOTE.speaker]
 --
-TODO
+`deriveEncoder`/`deriveDecoder` cannot use implicit `Encoder`/`Decoder` because it
+would cause circular dependencies, for that reason it is not recursive as well.
 --
 
-=== !
-
-[source]
---
-sbt --no-server circeGenericAuto/clean     "show circeGenericAuto/name"     circeGenericAuto/compile
-[info] welcome to sbt 1.10.1 (GraalVM Community Java 22.0.2)
-...
-[success] Total time: 0 s, completed Sep 5, 2024, 11:21:31 AM
-[info] circeGenericAuto
-[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-auto/target/jvm-2.13/classes ...
-[success] Total time: 15 s, completed Sep 5, 2024, 11:21:46 AM
-
-sbt --no-server circeGenericAuto3/clean    "show circeGenericAuto3/name"    circeGenericAuto3/compile
-[info] welcome to sbt 1.10.1 (GraalVM Community Java 22.0.2)
-...
-[success] Total time: 0 s, completed Sep 5, 2024, 11:21:59 AM
-[info] circeGenericAuto
-[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-auto/target/jvm-3/classes ...
-[success] Total time: 49 s, completed Sep 5, 2024, 11:22:48 AM
---
-
-[NOTE.speaker]
---
-TODO
-Scala 2 vs Scala 3
---
-
-=== !
-
-[source]
---
-sbt
-... a lot of compilations for warmup
-> circeGenericAuto/clean     "show circeGenericAuto/name"     circeGenericAuto/compile
-[success] Total time: 0 s, completed Sep 5, 2024, 3:52:49 PM
-[info] circeGenericAuto
-[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-auto/target/jvm-2.13/classes ...
-[success] Total time: 7 s, completed Sep 5, 2024, 3:52:55 PM
-> circeGenericAuto3/clean    "show circeGenericAuto3/name"    circeGenericAuto3/compile
-[success] Total time: 0 s, completed Sep 5, 2024, 3:52:56 PM
-[info] circeGenericAuto
-[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-auto/target/jvm-3/classes ...
-[success] Total time: 22 s, completed Sep 5, 2024, 3:53:17 PM
---
-
-[NOTE.speaker]
---
-TODO
-Scala 2 vs Scala 3
---
-
-=== !
+[transition=fade, %notitle]
+=== Semi-automatic
 
 [source, scala]
 --
 import io.circe.{Decoder, Encoder, Json}
-import io.circe.generic.semiauto._ // <- this is important
-import io.circe.syntax._
+import io.circe.generic.semiauto.* // <-- utilities come from here
+import io.circe.syntax.*
+
+// compilation error - missing implicits for Decoder[In4], Encoder[In4]!!!
+implicit val in5Decoder: Decoder[In5] = deriveDecoder
+implicit val in5Encoder: Encoder[In5] = deriveEncoder
+implicit val outDecoder: Decoder[Out] = deriveDecoder
+implicit val outEncoder: Encoder[Out] = deriveEncoder
+def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
+  val json = out.asJson // implicit Encoder[Out]
+  val parsed = json.as[Out] // implicit Decoder[Out]
+  json -> parsed
+}
 --
 
-[%step%]
+[transition=fade, %notitle]
+=== Semi-automatic
+
 [source, scala]
 --
+import io.circe.{Decoder, Encoder, Json}
+import io.circe.generic.semiauto.* // <-- utilities come from here
+import io.circe.syntax.*
+
+// compilation error -  missing implicits for Decoder[In3], Encoder[In3]!!!
+implicit val in4Decoder: Decoder[In4] = deriveDecoder
+implicit val in4Encoder: Encoder[In4] = deriveEncoder
+implicit val in5Decoder: Decoder[In5] = deriveDecoder
+implicit val in5Encoder: Encoder[In5] = deriveEncoder
+implicit val outDecoder: Decoder[Out] = deriveDecoder
+implicit val outEncoder: Encoder[Out] = deriveEncoder
+def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
+  val json = out.asJson // implicit Encoder[Out]
+  val parsed = json.as[Out] // implicit Decoder[Out]
+  json -> parsed
+}
+--
+
+[transition=fade, %notitle]
+=== Semi-automatic
+
+[source, scala]
+--
+import io.circe.{Decoder, Encoder, Json}
+import io.circe.generic.semiauto.* // <-- utilities come from here
+import io.circe.syntax.*
+
+// compilation error - missing implicits for Decoder[In2], Encoder[In2]!!!
+implicit val in3Decoder: Decoder[In3] = deriveDecoder
+implicit val in3Encoder: Encoder[In3] = deriveEncoder
+implicit val in4Decoder: Decoder[In4] = deriveDecoder
+implicit val in4Encoder: Encoder[In4] = deriveEncoder
+implicit val in5Decoder: Decoder[In5] = deriveDecoder
+implicit val in5Encoder: Encoder[In5] = deriveEncoder
+implicit val outDecoder: Decoder[Out] = deriveDecoder
+implicit val outEncoder: Encoder[Out] = deriveEncoder
+def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
+  val json = out.asJson // implicit Encoder[Out]
+  val parsed = json.as[Out] // implicit Decoder[Out]
+  json -> parsed
+}
+--
+
+[transition=fade, %notitle]
+=== Semi-automatic
+
+[source, scala]
+--
+import io.circe.{Decoder, Encoder, Json}
+import io.circe.generic.semiauto.* // <-- utilities come from here
+import io.circe.syntax.*
+
+// compilation error - missing implicits for Decoder[In1], Encoder[In1]!!!
+implicit val in2Decoder: Decoder[In2] = deriveDecoder
+implicit val in2Encoder: Encoder[In2] = deriveEncoder
+implicit val in3Decoder: Decoder[In3] = deriveDecoder
+implicit val in3Encoder: Encoder[In3] = deriveEncoder
+implicit val in4Decoder: Decoder[In4] = deriveDecoder
+implicit val in4Encoder: Encoder[In4] = deriveEncoder
+implicit val in5Decoder: Decoder[In5] = deriveDecoder
+implicit val in5Encoder: Encoder[In5] = deriveEncoder
+implicit val outDecoder: Decoder[Out] = deriveDecoder
+implicit val outEncoder: Encoder[Out] = deriveEncoder
+def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
+  val json = out.asJson // implicit Encoder[Out]
+  val parsed = json.as[Out] // implicit Decoder[Out]
+  json -> parsed
+}
+--
+
+[transition=fade, transition-speec=fast, %notitle]
+=== Semi-automatic
+
+[source, scala]
+--
+import io.circe.{Decoder, Encoder, Json}
+import io.circe.generic.semiauto.* // <-- utilities come from here
+import io.circe.syntax.*
+
 implicit val in1Decoder: Decoder[In1] = deriveDecoder
 implicit val in1Encoder: Encoder[In1] = deriveEncoder
 implicit val in2Decoder: Decoder[In2] = deriveDecoder
@@ -134,270 +342,392 @@ implicit val in5Decoder: Decoder[In5] = deriveDecoder
 implicit val in5Encoder: Encoder[In5] = deriveEncoder
 implicit val outDecoder: Decoder[Out] = deriveDecoder
 implicit val outEncoder: Encoder[Out] = deriveEncoder
-
 def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
-  val json = out.asJson
-  val parsed = json.as[Out]
+  val json = out.asJson // implicit Encoder[Out]
+  val parsed = json.as[Out] // implicit Decoder[Out]
   json -> parsed
 }
 --
 
-=== !
-
-[source]
+[NOTE.speaker]
 --
-sbt --no-server circeGenericSemi/clean     "show circeGenericSemi/name"     circeGenericSemi/compile
-[info] welcome to sbt 1.10.1 (GraalVM Community Java 22.0.2)
-...
-[success] Total time: 0 s, completed Sep 5, 2024, 11:23:01 AM
-[info] circeGenericSemi
-[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/target/jvm-2.13/classes ...
-[success] Total time: 14 s, completed Sep 5, 2024, 11:23:15 AM
-
-sbt --no-server circeGenericSemi3/clean    "show circeGenericSemi3/name"    circeGenericSemi3/compile
-[info] welcome to sbt 1.10.1 (GraalVM Community Java 22.0.2)
-...
-[success] Total time: 0 s, completed Sep 5, 2024, 11:23:28 AM
-[info] circeGenericSemi
-[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/target/jvm-3/classes ...
-[success] Total time: 11 s, completed Sep 5, 2024, 11:23:39 AM
+The UX is horrible, but how about the compilation time?
 --
 
 === !
 
-[source]
---
-sbt --no-server circeGenericSemi/clean     "show circeGenericSemi/name"     circeGenericSemi/compile
-[info] welcome to sbt 1.10.1 (GraalVM Community Java 22.0.2)
-...
-[success] Total time: 0 s, completed Sep 5, 2024, 11:23:01 AM
-[info] circeGenericSemi
-[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/target/jvm-2.13/classes ...
-[success] Total time: 14 s, completed Sep 5, 2024, 11:23:15 AM
-
-sbt --no-server circeGenericSemi3/clean    "show circeGenericSemi3/name"    circeGenericSemi3/compile
-[info] welcome to sbt 1.10.1 (GraalVM Community Java 22.0.2)
-...
-[success] Total time: 0 s, completed Sep 5, 2024, 11:23:28 AM
-[info] circeGenericSemi
-[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/target/jvm-3/classes ...
-[success] Total time: 11 s, completed Sep 5, 2024, 11:23:39 AM
---
-
-=== !
-
-[source]
---
-sbt
-... a lot of compilations for warmup
-> circeGenericSemi/clean     "show circeGenericSemi/name"     circeGenericSemi/compile
-[success] Total time: 0 s, completed Sep 5, 2024, 3:53:18 PM
-[info] circeGenericSemi
-[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/target/jvm-2.13/classes ...
-[success] Total time: 4 s, completed Sep 5, 2024, 3:53:21 PM
-> circeGenericSemi3/clean    "show circeGenericSemi3/name"    circeGenericSemi3/compile
-[success] Total time: 0 s, completed Sep 5, 2024, 3:53:22 PM
-[info] circeGenericSemi
-[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/target/jvm-3/classes ...
-[success] Total time: 2 s, completed Sep 5, 2024, 3:53:24 PM
---
-
-=== !
-
-a tutaj benchmarki
-
-== How it actually works?
-
-TODO
-- implicity
-- shapeless
-- debugowanie tego
-- error messages :P
-
-== Magnolia
-
-=== !
-
+[%step]
 [source, scala]
 --
-// actual code  based on https://github.com/vpavkin/circe-magnolia/
-import magnolia1._
-import scala.language.experimental.macros
-
-trait MagnoliaDecoder {
-  def join[T](caseClass: CaseClass[Decoder, T]): Decoder[T] = ...
-  def split[T](sealedTrait: SealedTrait[Decoder, T]): Decoder[T] = ...
-}
-
-object DecoderSemi extends MagnoliaDecoder {
-  type Typeclass[A] = Decoder[A]
-  def derived[T]: Typeclass[T] = macro Magnolia.gen[T]
-}
-
-object DecoderAuto extends MagnoliaDecoder {
-  type Typeclass[A] = Decoder[A]
-  implicit def derivedDecoder[T]: Typeclass[T] = macro Magnolia.gen[T]
-}
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
+circe-generic-semi/target/jvm-2.13/classes ...
+[success] Total time: 12 s, completed Sep 7, 2024, 9:37:00 PM
 --
 
+[%step]
 [source, scala]
 --
-// same for Encoders
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
+circe-generic-semi/target/jvm-2.13/classes ...
+[success] Total time: 3 s, completed Sep 7, 2024, 9:37:00 PM
+--
+
+
+[%step]
+[source, scala]
+--
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
+circe-generic-semi/target/jvm-3/classes ...
+[success] Total time: 10 s, completed Sep 7, 2024, 9:37:00 PM
+--
+
+[%step]
+[source, scala]
+--
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
+circe-generic-semi/target/jvm-3/classes ...
+[success] Total time: 1 s, completed Sep 7, 2024, 9:37:00 PM
 --
 
 [NOTE.speaker]
 --
-Mention that I haven't found an up to-date magnolia derivation for Circe
+* cold Scala 2 was 14
+* hot Scala 2 was 4
+* cold Scala 3 was 46
+* hot Scala 3 was 16
 --
 
 === !
 
+Why is that?
+
+== Generic programming
+
+=== Mirrors
+
+[%step]
 [source, scala]
 --
-// actual code based on https://github.com/vpavkin/circe-magnolia/
-import magnolia1.*
-import scala.deriving.Mirror
-
-trait MagnoliaDecoder extends Derivation[Decoder] {
-  def join[T](caseClass: CaseClass[Decoder, T]): Decoder[T] = ...
-  def split[T](sealedTrait: SealedTrait[Decoder, T]): Decoder[T] = ...
+sealed trait Mirror {
+  type MirroredMonoType /** The mirrored type */
+  type MirroredLabel <: String /** The name of the type */
+  type MirroredElemLabels <: Tuple /** The names of the product elements */
 }
-
-object DecoderSemi extends MagnoliaDecoder
-
-object DecoderAuto extends MagnoliaDecoder {
-  // I used implicit instead of given for easier cross-compilation
-  implicit inline def deriveDecoder[A](implicit m: Mirror.Of[A]): Decoder[A] =
-    derived
+object Mirror {
+  trait Product extends Mirror {
+    /** Create a new instance of type `T` with elements taken from product `p`. */
+    def fromProduct(p: scala.Product): MirroredMonoType
+  }
+  type ProductOf[T] = Product { type MirroredType = T;
+                                type MirroredMonoType = T;
+                                type MirroredElemTypes <: Tuple }
 }
 --
 
+[%step]
 [source, scala]
 --
-// same for Encoders
+case class Foo(a: Int, b: String, c: Double)
+--
+
+[%step]
+[source, scala]
+--
+object Foo extends Mirror.Product {
+  type MirroredType = Foo
+  type MirroredMonoType = Foo
+  type MirroredLabel = "Foo"
+  type MirroredElemLabels = ("a", "b", "c")
+  type MirroredElemTypes = (Int, String, Double)
+  def fromProduct(p: scala.Product): Foo
+}
+// summon[Mirror.ProductOf[Foo]] == Foo.type
 --
 
 === !
 
+[%step]
 [source, scala]
 --
-import DecoderAuto._ // <- our Magnolia-based derivation
-import EncoderAuto._ // <- our Magnolia-based derivation
-import io.circe.Decoder.Result
-import io.circe.Json
-import io.circe.syntax._
---
+trait FastShowPretty[A] {
 
-[source, scala]
---
-def roundTrip(out: Out): (Json, Result[Out]) = {
-  val json = out.asJson
-  val parsed = json.as[Out]
-  json -> parsed
+  def showPretty(
+    value:   A,
+    sb:      StringBuilder,
+    indent:  String = "  ",
+    nesting: Int = 0
+  ): StringBuilder
 }
 --
 
-=== !
-
-[source]
+[%step]
+[source, scala]
 --
-[error] Error while emitting example/CirceMagnoliaAuto$
-[error] Class too large: example/CirceMagnoliaAuto$
-[error] one error found
+inline def deriveProduct[A](implicit p: Mirror.ProductOf[A]): FastShowPretty[A] =
+  new FastShowPretty[A] {
+    private val name: String = valueOf[p.MirroredLabel]
+    private val meta: Array[(String, FastShowPretty[Any])] = {
+      val labels =
+        summonAll[Tuple.Map[p.MirroredElemLabels, ValueOf]].toList
+          .asInstanceOf[List[ValueOf[String]]].map(_.value)
+      val instances =
+        summonAll[Tuple.Map[p.MirroredElemTypes, FastShowPretty]].toList
+          .asInstanceOf[List[FastShowPretty[Any]]]
+      labels.zip(instances).toArray
+    }
+    private def fields(a: A): Seq[Any] = a.asInstanceOf[Product].productIterator
+
+    def showPretty(
+      value:   A,
+      sb:      StringBuilder,
+      indent:  String = "  ",
+      nesting: Int = 0
+    ): StringBuilder = ???
+  }
 --
 
 [NOTE.speaker]
 --
-Magnolia-based autoderivation in Scala 3 crashed the compiler xD
+Actual implementation is an excercise for the reader.
+--
+
+=== Shapeless
+
+[%step]
+[source, scala]
+--
+// no
+//   a *: b *: c *: EmptyTuple <: Tuple
+// on Scala 3, so we had to implmenent it!
+sealed trait HList
+
+final case class ::[+H, +T <: HList](head : H, tail : T) extends HList
+
+sealed trait HNil extends HList
+case object HNil extends HNil
+// a :: b :: c :: HNil       <: HList on Scala 2 + Shapeless is like
+// a *: b *: c *: EmptyTuple <: Tuple on Scala 3
+--
+
+[%step]
+[source, scala]
+--
+trait Generic[T] {
+  type Repr
+  def to(t : T) : Repr
+  def from(r : Repr) : T
+}
+object Generic {
+  type Aux[T, Repr0] = Generic[T] { type Repr = Repr0 }
+}
+// there's also LabelledGeneric
+--
+
+[%step]
+[source, scala]
+--
+case class Foo(a: Int, b: String, c: Double)
+Generic[Foo] // Generic[Foo] { type Repr = Int :: String :: Double :: HNil }
+LabelledGeneric[Foo] // LabelledGeneric[Foo] {
+// type Repr =
+//   FieldType['a, Int] :: FieldType['b, String] :: FieldType['c, Double] :: HNil
+// }
+--
+
+[NOTE.speaker]
+--
+On Scala 2 tuples didn't behave like lists.
 --
 
 === !
 
+[%step]
 [source, scala]
 --
-object EncodeHelper {
-  def encode(out: Out): Json = out.asJson
-}
-
-object DecoderHelper {
-  def decode(json: Json): Result[Out] = json.as[Out]
-}
+implicit def showHList[A, ARepr <: HList](implicit
+    gen: LabelledGeneric.Aux[A, ARepr],
+    classTag: ClassTag[A],
+    instance: FastShowPretty[ARepr]
+): FastShowPretty[A] = ???
+// e.g.
+// FastShowPretty[Foo]
+// ->
+// showHList[Foo, FieldType['a,Int]::FieldType['b,String]::FieldType['c,Double]::HNil]
 --
+
+[%step]
+[source, scala]
+--
+implicit def showHCons[HeadName <: Symbol, Head, Tail <: HList](implicit
+    name: Witness.Aux[HeadName], // <-- singleton type before they were cool
+    head: Lazy[FastShowPretty[Head]], // <-- yup, this laziness is needed
+    tail: FastShowPretty[Tail]
+): FastShowPretty[FieldType[HeadName, Head] :: Tail] = ???
+// e.g.
+// FastShowPretty[FieldType['a,Int]::FieldType['b,String]::FieldType['c,Double]::HNil]
+// ->
+// showHCons['a, Int, FieldType['b, String] :: FieldType['c, Double] :: HNil]
+
+// FastShowPretty[FieldType['b, String] :: FieldType['c, Double] :: HNil]
+// ->
+// showHCons['b, String, FieldType['c, Double] :: HNil]
+
+// FastShowPretty[FieldType['c, Double] :: HNil]
+// ->
+// showHCons['c, Double, HNil]
+--
+
+[%step]
+[source, scala]
+--
+implicit val showHNil: FastShowPretty[HNil] = ???
+// e.g.
+// FastShowPretty[HNil]
+// ->
+// showHNil
+--
+
+=== What else we need to know about implicits?
+
+
+=== !
+
+The values that are accessible in the current scope (defined, inherited, imported) which are `implicit` (`given`), belong to the `implicit` scope:
 
 [source, scala]
 --
-def roundTrip(out: Out): (Json, Result[Out]) = {
-  val json = EncodeHelper.encode(out)
-  val parsed = DecoderHelper.decode(json)
-  json -> parsed
+implicit val defined: Foo = ...
+
+trait Parent {
+  implicit val inherited: Bar = ...
+}
+
+object Module {
+  implicit val imported: Baz = ...
+
+  given importedToo: Baz2 = ...
+}
+
+class Child extends Parent {
+  import Module.*
+  // defined, inherited, imported are seen here
+  import Module.given
+  // importedToo is seen as well
 }
 --
 
 === !
 
-[source]
+Implicits defined in the companion object of **EVERY** type that is a part of type of the `implicit` we're summoning:
+
+[source, scala]
 --
-sbt --no-server circeMagnoliaAuto/clean    "show circeMagnoliaAuto/name"    circeMagnoliaAuto/compile
-[info] welcome to sbt 1.10.1 (GraalVM Community Java 22.0.2)
+trait TypeClass[A]
+object TypeClass { /* implicits */ }
+
+case class Foo[A]()
+object Foo { /* implicits */ }
+
+object Bar { implicit val tc: TypeClass[Bar.type] = ??? }
+
+object Baz {
+  opaque type Nested = String
+  // implicits
+}
+
+type Alias = Bar.type
+object Alias { /* implicits */ }
+--
+
+[source, scala]
+--
+implicitly[TypeClass[Foo[Bar]]]
+// would look inside objects: TypeClass.type, Foo.type, Bar.type
+
+implicitly[TypeClass[Baz.Nested]]
+// would look inside objects: TypeClass.type, Baz.type!!
+
+implicitly[TypeClass[Alias]]
+// would NOT look inside Alias.type
+--
+
+=== !
+
+Implicits have priorities:
+
+[source, scala]
+--
+object Implicits {
+  implicit def allCollections[A, CC <: Iterable[A]]: TypeClass[CC] = ???
+
+  implicit def specialCase[A]: TypeClass[List[A]] = ???
+}
+import Implicits.*
+implicitly[TypeClass[List[String]]] // ambiguity! 2 implicits match
+--
+
+[source, scala]
+--
+object Implicits extends LowPriorityImplicits {
+  implicit def specialCase[A]: TypeClass[List[A]] = ???
+}
+trait LowPriorityImplicits {
+  implicit def allCollections[A, CC <: Iterable[A]]: TypeClass[CC] = ???
+}
+import Implicits.*
+implicitly[TypeClass[List[String]]] // no ambiguity, specialCase is selected
+--
+
+[%step]
+[source, scala]
+--
+object CompanionObject extends LowPriorityImplicits0 { ... }
+trait LowPriorityImplicits0 extends LowPriorityImplicits1 { ... }
+trait LowPriorityImplicits1 extends LowPriorityImplicits2 { ... }
 ...
-[success] Total time: 0 s, completed Sep 5, 2024, 11:23:52 AM
-[info] circeMagnoliaAuto
-[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-magnolia-auto/target/jvm-2.13/classes ...
-[success] Total time: 15 s, completed Sep 5, 2024, 11:24:07 AM
-
-sbt --no-server circeMagnoliaAuto3/clean   "show circeMagnoliaAuto3/name"   circeMagnoliaAuto3/compile
-[info] welcome to sbt 1.10.1 (GraalVM Community Java 22.0.2)
-...
-[success] Total time: 0 s, completed Sep 5, 2024, 11:24:20 AM
-[info] circeMagnoliaAuto
-[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-magnolia-auto/target/jvm-3/classes ...
-[success] Total time: 56 s, completed Sep 5, 2024, 11:25:16 AM
---
-
-[NOTE.speaker]
---
-Magnolia on Scala 3 is painfully slow - because it's just a wrapper around mirrors
 --
 
 === !
 
-[source]
---
-sbt
-... a lot of compilations for warmup
-> circeMagnoliaAuto/clean    "show circeMagnoliaAuto/name"    circeMagnoliaAuto/compile
-[success] Total time: 0 s, completed Sep 5, 2024, 3:53:24 PM
-[info] circeMagnoliaAuto
-[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-magnolia-auto/target/jvm-2.13/classes ...
-[success] Total time: 3 s, completed Sep 5, 2024, 3:53:27 PM
-> circeMagnoliaAuto3/clean   "show circeMagnoliaAuto3/name"   circeMagnoliaAuto3/compile
-[success] Total time: 0 s, completed Sep 5, 2024, 3:53:27 PM
-[info] circeMagnoliaAuto
-[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-magnolia-auto/target/jvm-3/classes ...
-[success] Total time: 37 s, completed Sep 5, 2024, 3:54:04 PM
---
+Compiler looks **only at the signatures**, so it can decide if it's a match without running an `implicit def`. This **includes**
+`implicit` macros and `implicit` (`given`) `inline def` s.
 
-[NOTE.speaker]
+[source, scala]
 --
-Even hot jvm doesn't help much with overhead of Magnolia on Scala 3.
-
-Mention Spotify's libraries with instances derived with Magnolia - https://github.com/spotify/magnolify - and that they probably should know that their Scala 3 performance might be really bad.
+// TODO
 --
-
-== JSONs from a different angle
 
 === !
 
-kod przykładu
+Unless it's a whitebox macro/`transparent inline def`.
 
-jsoniter
-- tylko semiauto
-- jakieś metody a ale nie extension methods
-- żeby to semiauto za bardzo nie bolało to semi jest rekurencyjne
-- instancje type classy nadpisują zachowanie ale nie są używane do dostarczania domyślnych instancji
+(potwierdzić to zanim zacznę rysować)
+
+[source, scala]
+--
+// TODO
+--
 
 === !
 
-benchmarki
+Image with shapeless happy expansion
 
-== Thank you !
+=== !
+
+Image with mirros happy expansion
+
+=== !
+
+Why shapeless is faster?
+
+Images with PRs with improvements
+
+== Summary
+
+
+== Thank you!
+
+image::img/qr-code.png[Link to examples,40%,40%]
+
+https://github.com/MateuszKubuszok/derivation-benchmarks
+
