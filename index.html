@@ -418,7 +418,7 @@ ul.byline li + li {
 <div class="paragraph"><p>Mateusz Kubuszok</p></div></div></section>
 <section id="_about_me"><h2>About me</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>breaking things in Scala for 9 years</p></li><li class="fragment"><p>a little bit of open source - including co-authoring Chimney for almost 7 years now</p></li><li class="fragment"><p>blog at <a href="https://kubuszok.com">Kubuszok.com</a></p></li><li class="fragment"><p>niche <a href="https://leanpub.com/jvm-scala-book">Things you need to know about JVM (that matter in Scala)</a> ebook</p></li></ul></div>
 <aside class="notes"></aside></div></section>
-<section><section id="_agenda"><h2>Agenda</h2><div class="slide-content"><div class="paragraph"><p>TODO</p></div></div></section><section id="_examples"><h2>Examples</h2><div class="slide-content"><div class="imageblock"><img src="img/qr-code.png" alt="Link to examples" width="40%" height="40%"></div>
+<section><section id="_agenda"><h2>Agenda</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>demo of an automatic and semiautomatic derivation</p></li><li class="fragment"><p>how automatic/semi-automatic derivation works</p></li><li class="fragment"><p>what does Magnolia bring to the table</p></li><li class="fragment"><p>example of a library with a different approach to semi-automatic</p></li><li class="fragment"><p>and an</p></li></ul></div></div></section><section id="_examples"><h2>Examples</h2><div class="slide-content"><div class="imageblock"><img src="img/qr-code.png" alt="Link to examples" width="40%" height="40%"></div>
 <div class="paragraph"><p><a href="https://github.com/MateuszKubuszok/derivation-benchmarks" class="bare">https://github.com/MateuszKubuszok/derivation-benchmarks</a></p></div>
 <aside class="notes"><div class="paragraph"><p>We cannot afford to have a study each example in deep, since it could take a whole day, so as a homework or an excercise for the reader here&#8217;s the link.</p></div></aside></div></section></section>
 <section><section id="_demotivating_example"><h2>(De)motivating example</h2></section><section id="_type_class"><h2>Type class</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// from Circe
@@ -483,7 +483,7 @@ circe-generic-auto/target/jvm-3/classes ...
 circe-generic-auto/target/jvm-3/classes ...
 [success] Total time: 16 s, completed Sep 7, 2024, 9:37:00 PM</code></pre></div></div>
 <aside class="notes"><div class="ulist"><ul><li><p>cold, Scala 2</p></li><li><p>hot, Scala 2</p></li><li><p>cold, Scala 3</p></li><li><p>hot, Scala 3</p></li></ul></div>
-<div class="paragraph"><p>What tribal knowledge recommends in such situation? Semi-automatic derivation!</p></div></aside></div></section><section id="_semi_automatic" data-transition="slide-in fade-out"><h2>Semi-automatic</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.{Decoder, Encoder, Json}
+<div class="paragraph"><p>What tribal knowledge recommends in such situation? Semi-automatic derivation!</p></div></aside></div></section><section id="_semi_automatic" data-transition="slide-in none-out"><h2>Semi-automatic</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.{Decoder, Encoder, Json}
 import io.circe.generic.semiauto.* // &lt;-- utilities come from here
 import io.circe.syntax.*
 
@@ -496,7 +496,7 @@ def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
   json -&gt; parsed
 }</code></pre></div></div>
 <aside class="notes"><div class="paragraph"><p><code>deriveEncoder</code>/<code>deriveDecoder</code> cannot use implicit <code>Encoder</code>/<code>Decoder</code> because it
-would cause circular dependencies, for that reason it is not recursive as well.</p></div></aside></div></section><section id="_semi_automatic_2" data-transition="fade"><h2>Semi-automatic</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.{Decoder, Encoder, Json}
+would cause circular dependencies, for that reason it is not recursive as well.</p></div></aside></div></section><section id="_semi_automatic_2" data-transition="none"><h2>Semi-automatic</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.{Decoder, Encoder, Json}
 import io.circe.generic.semiauto.* // &lt;-- utilities come from here
 import io.circe.syntax.*
 
@@ -509,7 +509,7 @@ def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
   val json = out.asJson // implicit Encoder[Out]
   val parsed = json.as[Out] // implicit Decoder[Out]
   json -&gt; parsed
-}</code></pre></div></div></div></section><section id="_semi_automatic_3" data-transition="fade"><h2>Semi-automatic</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.{Decoder, Encoder, Json}
+}</code></pre></div></div></div></section><section id="_semi_automatic_3" data-transition="none"><h2>Semi-automatic</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.{Decoder, Encoder, Json}
 import io.circe.generic.semiauto.* // &lt;-- utilities come from here
 import io.circe.syntax.*
 
@@ -524,7 +524,7 @@ def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
   val json = out.asJson // implicit Encoder[Out]
   val parsed = json.as[Out] // implicit Decoder[Out]
   json -&gt; parsed
-}</code></pre></div></div></div></section><section id="_semi_automatic_4" data-transition="fade"><h2>Semi-automatic</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.{Decoder, Encoder, Json}
+}</code></pre></div></div></div></section><section id="_semi_automatic_4" data-transition="none"><h2>Semi-automatic</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.{Decoder, Encoder, Json}
 import io.circe.generic.semiauto.* // &lt;-- utilities come from here
 import io.circe.syntax.*
 
@@ -541,7 +541,7 @@ def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
   val json = out.asJson // implicit Encoder[Out]
   val parsed = json.as[Out] // implicit Decoder[Out]
   json -&gt; parsed
-}</code></pre></div></div></div></section><section id="_semi_automatic_5" data-transition="fade"><h2>Semi-automatic</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.{Decoder, Encoder, Json}
+}</code></pre></div></div></div></section><section id="_semi_automatic_5" data-transition="none"><h2>Semi-automatic</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.{Decoder, Encoder, Json}
 import io.circe.generic.semiauto.* // &lt;-- utilities come from here
 import io.circe.syntax.*
 
@@ -560,7 +560,7 @@ def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
   val json = out.asJson // implicit Encoder[Out]
   val parsed = json.as[Out] // implicit Decoder[Out]
   json -&gt; parsed
-}</code></pre></div></div></div></section><section id="_semi_automatic_6" data-transition="fade"><h2>Semi-automatic</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.{Decoder, Encoder, Json}
+}</code></pre></div></div></div></section><section id="_semi_automatic_6" data-transition="none-in slide-out"><h2>Semi-automatic</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.{Decoder, Encoder, Json}
 import io.circe.generic.semiauto.* // &lt;-- utilities come from here
 import io.circe.syntax.*
 
@@ -767,7 +767,116 @@ trait LowPriorityImplicits1 extends LowPriorityImplicits2 { ... }
 <code>implicit</code> macros and <code>implicit</code> (<code>given</code>) <code>inline def</code> s.</p></div>
 <div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// TODO</code></pre></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>Unless it&#8217;s a whitebox macro/<code>transparent inline def</code>.</p></div>
 <div class="paragraph"><p>(potwierdzić to zanim zacznę rysować)</p></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// TODO</code></pre></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>Image with shapeless happy expansion</p></div></div></section><section><div class="slide-content"><div class="paragraph"><p>Image with mirros happy expansion</p></div></div></section><section><div class="slide-content"><div class="paragraph"><p>Why shapeless is faster?</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// TODO</code></pre></div></div></div></section><section id="_chain_of_derivations"><h2>Chain of derivations</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class A(b: B)
+case class B(c: C)
+case class C(int: Int)</code></pre></div></div>
+<div class="paragraph"><p>What happens when we summon <code>FastShowPretty[A]</code> with Shapeless?</p></div></div></section><section data-transition="slide-in none-out"><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">summon FastShowPretty[A]
+
+
+
+
+
+
+
+
+
+
+
+
+
+...</code></pre></div></div></div></section><section data-transition="none"><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">summon FastShowPretty[A]
+├ find all implicits in the scope and companions, sort by priorities, match 1-by-1
+├ get to FastShowPrettyAuto.showHList[A, ARepr]: FastShowPretty[A]
+└ is it done? we don't know yet, we have to summon LabelledGeneric.Aux[A, ARepr]
+
+
+
+
+
+
+
+
+
+
+...</code></pre></div></div>
+<aside class="notes"><div class="paragraph"><p><code>ARepr</code> has to be resolved yet.</p></div></aside></div></section><section data-transition="none"><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">summon FastShowPretty[A]
+├ find all implicits in the scope and companions, sort by priorities, match 1-by-1
+├ get to FastShowPrettyAuto.showHList[A, ARepr]: FastShowPretty[A]
+└ is it done? we don't know yet, we have to summon LabelledGeneric.Aux[A, ARepr]
+  ├ find all implicits in the scope...
+  ├ there is only one! LabelledGeneric.materialize!
+  ├ but it's a whitebox macro so we have to expand it to tell whether it works!
+  └ macro expanded! we resolved the ARepr to FieldType['b, B] :: HNil
+
+
+
+
+
+
+...</code></pre></div></div></div></section><section data-transition="none"><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">summon FastShowPretty[A]
+├ find all implicits in the scope and companions, sort by priorities, match 1-by-1
+├ get to FastShowPrettyAuto.showHList[A, ARepr]: FastShowPretty[A]
+├ is it done? we don't know yet, we have to summon LabelledGeneric.Aux[A, ARepr]
+│ ├ find all implicits in the scope...
+│ ├ there is only one! LabelledGeneric.materialize!
+│ ├ but it's a whitebox macro so we have to expand it to tell whether it works!
+│ └ macro expanded! we resolved the ARepr to FieldType['b, B] :: HNil
+└ is it done? nope, also need FastShowPretty[FieldType['b, B] :: HNil]!
+
+
+
+
+
+...</code></pre></div></div></div></section><section data-transition="none"><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">summon FastShowPretty[A]
+├ find all implicits in the scope and companions, sort by priorities, match 1-by-1
+├ get to FastShowPrettyAuto.showHList[A, ARepr]: FastShowPretty[A]
+├ is it done? we don't know yet, we have to summon LabelledGeneric.Aux[A, ARepr]
+│ ├ find all implicits in the scope...
+│ ├ there is only one! LabelledGeneric.materialize!
+│ ├ but it's a whitebox macro so we have to expand it to tell whether it works!
+│ └ macro expanded! we resolved the ARepr to FieldType['b, B] :: HNil
+└ is it done? nope, also need FastShowPretty[FieldType['b, B] :: HNil]!
+  ├ find all implicits in the scope...
+  ├ get to FastShowPrettyAuto.showHCons['b, B, HNil]
+  └ is it done? we don't know yet, we have to summon FastShowPretty[B]
+
+
+...</code></pre></div></div>
+<aside class="notes"><div class="paragraph"><p>I skipped summoning <code>Witness.Aux[B]</code>.</p></div></aside></div></section><section data-transition="none"><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">summon FastShowPretty[A]
+├ find all implicits in the scope and companions, sort by priorities, match 1-by-1
+├ get to FastShowPrettyAuto.showHList[A, ARepr]: FastShowPretty[A]
+├ is it done? we don't know yet, we have to summon LabelledGeneric.Aux[A, ARepr]
+│ ├ find all implicits in the scope...
+│ ├ there is only one! LabelledGeneric.materialize!
+│ ├ but it's a whitebox macro so we have to expand it to tell whether it works!
+│ └ macro expanded! we resolved the ARepr to FieldType['b, B] :: HNil
+└ is it done? nope, also need FastShowPretty[FieldType['b, B] :: HNil]!
+  ├ find all implicits in the scope...
+  ├ get to FastShowPrettyAuto.showHCons['b, B, HNil]
+  └ is it done? we don't know yet, we have to summon FastShowPretty[B]
+    ├ find all implicits in the scope and companions, sort by priorities, match 1-by-1
+    └ get to FastShowPrettyAuto.showHList[B, BRepr] : FastShowPretty[B]
+...</code></pre></div></div>
+<aside class="notes"><div class="paragraph"><p><code>BRepr</code> has to be resolved yet.</p></div></aside></div></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">summon FastShowPretty[A]
+└ FastShowPrettyAuto.showHList[A, ...]
+  ├ LabelledGeneric.materialize[A] &lt;- whitebox macro expansion!
+  └ FastShowPrettyAuto.showHCons['b, B, HNil]
+    ├ FastShowPrettyAuto.showHCons['b, B, HNil]
+    │ ├ FastShowPrettyAuto.showHList[B, ...]
+    │ │ ├ LabelledGeneric.materialize[B] &lt;- whitebox macro expansion!
+    │ │ └ FastShowPrettyAuto.showHCons['c, C, HNil]
+    │ │   ├ FastShowPrettyAuto.showHList[C, ...]
+    │ │   │ ├ LabelledGeneric.materialize[C] &lt;- whitebox macro expansion!
+    │ │   │ └ FastShowPrettyAuto.showHCons['c, C, HNil]
+    │ │   │   ├ FastShowPretty.showInt
+    │ │   │   └ FastShowPrettyAuto.showHNil
+    │ │   └ FastShowPrettyAuto.showHNil
+    │ └ FastShowPrettyAuto.showHNil
+    └ FastShowPrettyAuto.showHNil</code></pre></div></div>
+<aside class="notes"><div class="paragraph"><p>This is a happy path skipping <code>Witness.Aux</code> and all unmatched implicits.</p></div></aside></div></section><section id="_what_about_mirrors"><h2>What about mirrors?</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class A(b: B)
+case class B(c: C)
+case class C(int: Int)</code></pre></div></div>
+<div class="paragraph"><p>What happens when we summon <code>FastShowPretty[A]</code> with Mirrors?</p></div></div></section><section><div class="slide-content"><div class="paragraph"><p>Image with mirros happy expansion</p></div></div></section><section><div class="slide-content"><div class="paragraph"><p>Why shapeless is faster?</p></div>
 <div class="paragraph"><p>Images with PRs with improvements</p></div></div></section></section>
 <section id="_summary"><h2>Summary</h2></section>
 <section id="_thank_you"><h2>Thank you!</h2><div class="slide-content"><div class="imageblock"><img src="img/qr-code.png" alt="Link to examples" width="40%" height="40%"></div>

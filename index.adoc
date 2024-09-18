@@ -25,7 +25,12 @@ Mateusz Kubuszok
 
 == Agenda
 
-TODO
+[%step]
+* demo of an automatic and semiautomatic derivation
+* how automatic/semi-automatic derivation works
+* what does Magnolia bring to the table
+* example of a library with a different approach to semi-automatic
+* and an
 
 === Examples
 
@@ -200,7 +205,7 @@ circe-generic-auto/target/jvm-3/classes ...
 What tribal knowledge recommends in such situation? Semi-automatic derivation!
 --
 
-[transition=slide-in fade-out, %notitle]
+[transition=slide-in none-out, %notitle]
 === Semi-automatic
 
 [source, scala]
@@ -225,7 +230,7 @@ def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
 would cause circular dependencies, for that reason it is not recursive as well.
 --
 
-[transition=fade, %notitle]
+[transition=none, %notitle]
 === Semi-automatic
 
 [source, scala]
@@ -246,7 +251,7 @@ def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
 }
 --
 
-[transition=fade, %notitle]
+[transition=none, %notitle]
 === Semi-automatic
 
 [source, scala]
@@ -269,7 +274,7 @@ def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
 }
 --
 
-[transition=fade, %notitle]
+[transition=none, %notitle]
 === Semi-automatic
 
 [source, scala]
@@ -294,7 +299,7 @@ def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
 }
 --
 
-[transition=fade, %notitle]
+[transition=none, %notitle]
 === Semi-automatic
 
 [source, scala]
@@ -321,7 +326,7 @@ def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
 }
 --
 
-[transition=fade, transition-speec=fast, %notitle]
+[transition=none-in slide-out, %notitle]
 === Semi-automatic
 
 [source, scala]
@@ -708,9 +713,201 @@ Unless it's a whitebox macro/`transparent inline def`.
 // TODO
 --
 
+=== Chain of derivations
+
+[source, scala]
+--
+case class A(b: B)
+case class B(c: C)
+case class C(int: Int)
+--
+
+What happens when we summon `FastShowPretty[A]` with Shapeless?
+
+[transition=slide-in none-out, %notitle]
 === !
 
-Image with shapeless happy expansion
+[source, scala]
+--
+summon FastShowPretty[A]
+
+
+
+
+
+
+
+
+
+
+
+
+
+...
+--
+
+[transition=none, %notitle]
+=== !
+
+[source, scala]
+--
+summon FastShowPretty[A]
+├ find all implicits in the scope and companions, sort by priorities, match 1-by-1
+├ get to FastShowPrettyAuto.showHList[A, ARepr]: FastShowPretty[A]
+└ is it done? we don't know yet, we have to summon LabelledGeneric.Aux[A, ARepr]
+
+
+
+
+
+
+
+
+
+
+...
+--
+
+[NOTE.speaker]
+--
+`ARepr` has to be resolved yet.
+--
+
+[transition=none, %notitle]
+=== !
+
+[source, scala]
+--
+summon FastShowPretty[A]
+├ find all implicits in the scope and companions, sort by priorities, match 1-by-1
+├ get to FastShowPrettyAuto.showHList[A, ARepr]: FastShowPretty[A]
+└ is it done? we don't know yet, we have to summon LabelledGeneric.Aux[A, ARepr]
+  ├ find all implicits in the scope...
+  ├ there is only one! LabelledGeneric.materialize!
+  ├ but it's a whitebox macro so we have to expand it to tell whether it works!
+  └ macro expanded! we resolved the ARepr to FieldType['b, B] :: HNil
+
+
+
+
+
+
+...
+--
+
+[transition=none, %notitle]
+=== !
+
+[source, scala]
+--
+summon FastShowPretty[A]
+├ find all implicits in the scope and companions, sort by priorities, match 1-by-1
+├ get to FastShowPrettyAuto.showHList[A, ARepr]: FastShowPretty[A]
+├ is it done? we don't know yet, we have to summon LabelledGeneric.Aux[A, ARepr]
+│ ├ find all implicits in the scope...
+│ ├ there is only one! LabelledGeneric.materialize!
+│ ├ but it's a whitebox macro so we have to expand it to tell whether it works!
+│ └ macro expanded! we resolved the ARepr to FieldType['b, B] :: HNil
+└ is it done? nope, also need FastShowPretty[FieldType['b, B] :: HNil]!
+
+
+
+
+
+...
+--
+
+[transition=none, %notitle]
+=== !
+
+[source, scala]
+--
+summon FastShowPretty[A]
+├ find all implicits in the scope and companions, sort by priorities, match 1-by-1
+├ get to FastShowPrettyAuto.showHList[A, ARepr]: FastShowPretty[A]
+├ is it done? we don't know yet, we have to summon LabelledGeneric.Aux[A, ARepr]
+│ ├ find all implicits in the scope...
+│ ├ there is only one! LabelledGeneric.materialize!
+│ ├ but it's a whitebox macro so we have to expand it to tell whether it works!
+│ └ macro expanded! we resolved the ARepr to FieldType['b, B] :: HNil
+└ is it done? nope, also need FastShowPretty[FieldType['b, B] :: HNil]!
+  ├ find all implicits in the scope...
+  ├ get to FastShowPrettyAuto.showHCons['b, B, HNil]
+  └ is it done? we don't know yet, we have to summon FastShowPretty[B]
+
+
+...
+--
+
+[NOTE.speaker]
+--
+I skipped summoning `Witness.Aux[B]`.
+--
+
+[transition=none, %notitle]
+=== !
+
+[source, scala]
+--
+summon FastShowPretty[A]
+├ find all implicits in the scope and companions, sort by priorities, match 1-by-1
+├ get to FastShowPrettyAuto.showHList[A, ARepr]: FastShowPretty[A]
+├ is it done? we don't know yet, we have to summon LabelledGeneric.Aux[A, ARepr]
+│ ├ find all implicits in the scope...
+│ ├ there is only one! LabelledGeneric.materialize!
+│ ├ but it's a whitebox macro so we have to expand it to tell whether it works!
+│ └ macro expanded! we resolved the ARepr to FieldType['b, B] :: HNil
+└ is it done? nope, also need FastShowPretty[FieldType['b, B] :: HNil]!
+  ├ find all implicits in the scope...
+  ├ get to FastShowPrettyAuto.showHCons['b, B, HNil]
+  └ is it done? we don't know yet, we have to summon FastShowPretty[B]
+    ├ find all implicits in the scope and companions, sort by priorities, match 1-by-1
+    └ get to FastShowPrettyAuto.showHList[B, BRepr] : FastShowPretty[B]
+...
+--
+
+[NOTE.speaker]
+--
+`BRepr` has to be resolved yet.
+--
+
+=== !
+
+[source, scala]
+--
+summon FastShowPretty[A]
+└ FastShowPrettyAuto.showHList[A, ...]
+  ├ LabelledGeneric.materialize[A] <- whitebox macro expansion!
+  └ FastShowPrettyAuto.showHCons['b, B, HNil]
+    ├ FastShowPrettyAuto.showHCons['b, B, HNil]
+    │ ├ FastShowPrettyAuto.showHList[B, ...]
+    │ │ ├ LabelledGeneric.materialize[B] <- whitebox macro expansion!
+    │ │ └ FastShowPrettyAuto.showHCons['c, C, HNil]
+    │ │   ├ FastShowPrettyAuto.showHList[C, ...]
+    │ │   │ ├ LabelledGeneric.materialize[C] <- whitebox macro expansion!
+    │ │   │ └ FastShowPrettyAuto.showHCons['c, C, HNil]
+    │ │   │   ├ FastShowPretty.showInt
+    │ │   │   └ FastShowPrettyAuto.showHNil
+    │ │   └ FastShowPrettyAuto.showHNil
+    │ └ FastShowPrettyAuto.showHNil
+    └ FastShowPrettyAuto.showHNil
+--
+
+[NOTE.speaker]
+--
+This is a happy path skipping `Witness.Aux` and all unmatched implicits.
+--
+
+=== What about mirrors?
+
+[source, scala]
+--
+case class A(b: B)
+case class B(c: C)
+case class C(int: Int)
+--
+
+What happens when we summon `FastShowPretty[A]` with Mirrors?
 
 === !
 
