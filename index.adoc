@@ -947,20 +947,32 @@ What happens when we summon `FastShowPretty[A]` with Mirrors?
 
 === !
 
-Image with mirros happy expansion
-
-=== Semi-automatic derivation
-
-TODO
+[source, scala]
+--
+summon FastShowPretty[A]
+└ FastShowPrettyAuto.FastShowPrettyAuto[A]
+  ├ summon Mirror.Of[A] - it's A companion object!
+  ├ summon Value["b"]
+  └ summon FastShowPretty[B]
+    └ FastShowPrettyAuto.FastShowPrettyAuto[B]
+      ├ summon Mirror.Of[B] - it's B companion object!
+      ├ summon Value["c"]
+      └ summon FastShowPretty[C]
+        └ FastShowPrettyAuto.FastShowPrettyAuto[C]
+            ├ summon Mirror.Of[A] - it's C companion object!
+            ├ Value["int"]
+            └ summon FastShowPretty[Int]
+              └ FastShowPretty.showInt
+--
 
 === Why is Scala 2 faster?
 
 [.small]
 [%step]
-* PR #5649 - _Faster compilation of inductive implicits_ (closed)
-* PR #6481 - _Topic/inductive implicits 2.13.x_ (closed)
-* PR #6580 - _Prune polymorphic implicits more aggressively_ (merged)
-* PR #7012 - _Speed up implicit resolution by avoiding allocations when traversing TypeRefs in core_ (merged)
+* https://github.com/scala/scala/pull/5649[PR #5649] - _Faster compilation of inductive implicits_ (closed)
+* https://github.com/scala/scala/pull/6481[PR #6481] - _Topic/inductive implicits 2.13.x_ (closed)
+* https://github.com/scala/scala/pull/6580[PR #6580] - _Prune polymorphic implicits more aggressively_ (merged)
+* https://github.com/scala/scala/pull/7012[PR #7012] - _Speed up implicit resolution by avoiding allocations when traversing TypeRefs in core_ (merged)
 * and more
 
 [%step]
@@ -987,11 +999,122 @@ There was a series of Miles Sabin PRs improving performance of implicit resoluti
 Some of that work was ported to Scala 3 but perhaps not everything yet.
 --
 
+=== Semi-automatic derivation
+
+[.small]
+[%step]
+* used for generating implicits: +
+  `implicit val foo: TC[Foo] = deriveTC[Foo]`
+* should NOT create circular dependencies: +
+  `implicit val foo: Foo = implicitly[Foo] // foo`
+* when implemented with implicits **summons a different type** that it returns
+
+=== !
+
+[%step]
+[source, scala]
+--
+abstract class DerivedDecoder[A] extends Decoder[A]
+object DerivedDecoder extends IncompleteDerivedDecoders {
+  implicit def deriveDecoder[A, R](implicit
+    gen: LabelledGeneric.Aux[A, R],
+    decode: Lazy[ReprDecoder[R]]
+  ): DerivedDecoder[A] = ...
+}
+
+final def deriveDecoder[A](implicit decode: Lazy[DerivedDecoder[A]]): Decoder[A] = decode.value
+--
+
+[%step]
+[source, scala]
+--
+object FastShowPrettySemiauto {
+  case class DerivedFastShowPretty[A](instance: FastShowPretty[A]) extends AnyVal
+
+  implicit def showHList[A, ARepr <: HList](implicit
+        gen: LabelledGeneric.Aux[A, ARepr],
+        classTag: ClassTag[A],
+        instance: DerivedFastShowPretty[ARepr]
+    ): DerivedFastShowPretty[A] = ...
+
+  implicit def showHCons[HeadName <: Symbol, Head, Tail <: HList](implicit
+      name: Witness.Aux[HeadName],
+      head: Lazy[FastShowPretty[Head]],
+      tail: DerivedFastShowPretty[Tail]
+  ): DerivedFastShowPretty[FieldType[HeadName, Head] :: Tail] = ...
+
+  implicit val showHNil: DerivedFastShowPretty[HNil] = ...
+}
+
+def deriveShow[A](implicit derived: DerivedFastShowPretty[A]): FastShowPretty[A] = derived.instance
+--
+
+=== !
+
+Usually, semi-automatic derivation, on its own, does't handle recursive derivation.
+
+[%step]
+[source, scala]
+--
+import io.circe.generic.semiauto.*
+
+implicit val in1Decoder: Decoder[In1] = deriveDecoder
+implicit val in2Decoder: Decoder[In2] = deriveDecoder
+implicit val in3Decoder: Decoder[In3] = deriveDecoder
+implicit val in4Decoder: Decoder[In4] = deriveDecoder
+implicit val in5Decoder: Decoder[In5] = deriveDecoder
+implicit val outDecoder: Decoder[Out] = deriveDecoder
+--
+
+[%step]
+[source, scala]
+--
+import io.circe.generic.semiauto.*
+
+implicit val outDecoder: Decoder[Out] = {
+  import io.circe.generic.auto.*
+  deriveDecoder
+}
+--
+
 == Magnolia to the rescue
 
 TODO
 
-==
+== What if semi was recursive OOTB?
+
+TODO: show auto/semi and then jsoniter
+
+TODO: differences in philosphy
+
+TODO: benchmarks
+
+TODO: can it be made automatic?
+
+TODO: speakers notes about recursion NOT involving nested instances
+
+== Could Jsoniter be automatic?
+
+
+== More fair comparisons
+
+TODO show
+
+== No rose without a thorn
+
+TODO trzeba summonować TC.AD
+
+TODO problemy z derived na S3
+
+TODO: these are macros after all
+
+== Are macros so bad?
+
+TODO: poleconka
+
+TODO: refactor
+
+TODO: come back
 
 == Summary
 
