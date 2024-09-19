@@ -765,9 +765,38 @@ trait LowPriorityImplicits0 extends LowPriorityImplicits1 { ... }
 trait LowPriorityImplicits1 extends LowPriorityImplicits2 { ... }
 ...</code></pre></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>Compiler looks <strong>only at the signatures</strong>, so it can decide if it&#8217;s a match without running an <code>implicit def</code>. This <strong>includes</strong>
 <code>implicit</code> macros and <code>implicit</code> (<code>given</code>) <code>inline def</code> s.</p></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// TODO</code></pre></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>Unless it&#8217;s a whitebox macro/<code>transparent inline def</code>.</p></div>
-<div class="paragraph"><p>(potwierdzić to zanim zacznę rysować)</p></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// TODO</code></pre></div></div></div></section><section id="_chain_of_derivations"><h2>Chain of derivations</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class A(b: B)
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import scala.language.experimental.macros, scala.reflect.macros.blackbox
+
+trait TypeClass[A]
+
+object TypeClass extends TypeClassLowPriority0 {
+  implicit def useMacro: TypeClass[List[String]] = macro TypeClass.useMacroImpl
+
+  def useMacroImpl(c: blackbox.Context): c.Expr[TypeClass[List[String]]] =
+    c.abort(c.enclosingPosition, "lol nope")
+}
+trait TypeClassLowPriority0 {
+  implicit def noMacro[CC &lt;: Seq[String]]: TypeClass[CC] = new TypeClass[CC] {}
+}</code></pre></div></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">implicitly[TypeClass[Seq[String]]] // works
+implicitly[TypeClass[List[String]]] // compilation error: lol nope</code></pre></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>Unless it&#8217;s a whitebox macro/<code>transparent inline def</code>.</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import scala.language.experimental.macros, scala.reflect.macros.whitebox
+
+trait TypeClass[A]
+
+object TypeClass extends TypeClassLowPriority0 {
+
+  implicit def useMacro: TypeClass[List[String]] = macro TypeClass.useMacroImpl // &lt;- whitebox!
+
+  def useMacroImpl(c: whitebox.Context): c.Expr[TypeClass[List[String]]] =
+    c.abort(c.enclosingPosition, "lol nope")
+}
+trait TypeClassLowPriority0 {
+
+  implicit def noMacro[CC &lt;: Seq[String]]: TypeClass[CC] = new TypeClass[CC] {}
+}</code></pre></div></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">implicitly[TypeClass[Seq[String]]] // works
+implicitly[TypeClass[List[String]]] // also works!</code></pre></div></div></div></section><section id="_chain_of_derivations"><h2>Chain of derivations</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class A(b: B)
 case class B(c: C)
 case class C(int: Int)</code></pre></div></div>
 <div class="paragraph"><p>What happens when we summon <code>FastShowPretty[A]</code> with Shapeless?</p></div></div></section><section data-transition="slide-in none-out"><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">summon FastShowPretty[A]
@@ -876,8 +905,23 @@ case class C(int: Int)</code></pre></div></div>
 <aside class="notes"><div class="paragraph"><p>This is a happy path skipping <code>Witness.Aux</code> and all unmatched implicits.</p></div></aside></div></section><section id="_what_about_mirrors"><h2>What about mirrors?</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class A(b: B)
 case class B(c: C)
 case class C(int: Int)</code></pre></div></div>
-<div class="paragraph"><p>What happens when we summon <code>FastShowPretty[A]</code> with Mirrors?</p></div></div></section><section><div class="slide-content"><div class="paragraph"><p>Image with mirros happy expansion</p></div></div></section><section><div class="slide-content"><div class="paragraph"><p>Why shapeless is faster?</p></div>
-<div class="paragraph"><p>Images with PRs with improvements</p></div></div></section></section>
+<div class="paragraph"><p>What happens when we summon <code>FastShowPretty[A]</code> with Mirrors?</p></div></div></section><section><div class="slide-content"><div class="paragraph"><p>Image with mirros happy expansion</p></div></div></section><section id="_semi_automatic_derivation"><h2>Semi-automatic derivation</h2><div class="slide-content"><div class="paragraph"><p>TODO</p></div></div></section><section id="_why_is_scala_2_faster"><h2>Why is Scala 2 faster?</h2><div class="slide-content"><div class="ulist small"><ul><li class="fragment"><p>PR #5649 - <em>Faster compilation of inductive implicits</em> (closed)</p></li><li class="fragment"><p>PR #6481 - <em>Topic/inductive implicits 2.13.x</em> (closed)</p></li><li class="fragment"><p>PR #6580 - <em>Prune polymorphic implicits more aggressively</em> (merged)</p></li><li class="fragment"><p>PR #7012 - <em>Speed up implicit resolution by avoiding allocations when traversing TypeRefs in core</em> (merged)</p></li><li class="fragment"><p>and more</p></li></ul></div>
+<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">              1) baseline - scalac 2.13.x     2) scalac 2.13.x with matchesPtInst
+  HList Size
+   50            4                              3
+  100            7                              3
+  150           15                              4
+  200           28                              4
+  250           48                              5
+  300           81                              6
+  350          126                              8
+  400          189                             11
+  450          322                             13
+  500          405                             16         Compile time in seconds</code></pre></div></div>
+<aside class="notes"><div class="paragraph"><p>There was a series of Miles Sabin PRs improving performance of implicit resolution - 2 first PRs got closed but the third on got finally merged in 2.13-M5.</p></div>
+<div class="paragraph"><p>Some of that work was ported to Scala 3 but perhaps not everything yet.</p></div></aside></div></section></section>
+<section id="_magnolia_to_the_rescue"><h2>Magnolia to the rescue</h2><div class="slide-content"><div class="paragraph"><p>TODO</p></div>
+<div class="paragraph"><p>==</p></div></div></section>
 <section id="_summary"><h2>Summary</h2></section>
 <section id="_thank_you"><h2>Thank you!</h2><div class="slide-content"><div class="imageblock"><img src="img/qr-code.png" alt="Link to examples" width="40%" height="40%"></div>
 <div class="paragraph"><p><a href="https://github.com/MateuszKubuszok/derivation-benchmarks" class="bare">https://github.com/MateuszKubuszok/derivation-benchmarks</a></p></div></div></section></div></div><script src="./reveal.js/dist/reveal.js"></script><script>Array.prototype.slice.call(document.querySelectorAll('.slides section')).forEach(function(slide) {

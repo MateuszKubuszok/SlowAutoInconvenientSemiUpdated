@@ -4,6 +4,10 @@
  */
 @import url(./fonts/league-gothic/league-gothic.css);
 @import url(https://fonts.googleapis.com/css?family=Lato:400,700,400italic,700italic);
+.small {
+  font-size: 24px;
+}
+
 /**
  * Solarized colors by Ethan Schoonover
  */
@@ -18,7 +22,7 @@ html * {
 :root {
   --r-background-color: #fdf6e3;
   --r-main-font: Lato, sans-serif;
-  --r-main-font-size: 40px;
+  --r-main-font-size: 35px;
   --r-main-color: #657b83;
   --r-block-margin: 20px;
   --r-heading-margin: 0 0 20px 0;

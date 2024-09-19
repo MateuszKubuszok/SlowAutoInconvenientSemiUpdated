@@ -699,18 +699,54 @@ Compiler looks **only at the signatures**, so it can decide if it's a match with
 
 [source, scala]
 --
-// TODO
+import scala.language.experimental.macros, scala.reflect.macros.blackbox
+
+trait TypeClass[A]
+
+object TypeClass extends TypeClassLowPriority0 {
+  implicit def useMacro: TypeClass[List[String]] = macro TypeClass.useMacroImpl
+
+  def useMacroImpl(c: blackbox.Context): c.Expr[TypeClass[List[String]]] =
+    c.abort(c.enclosingPosition, "lol nope")
+}
+trait TypeClassLowPriority0 {
+  implicit def noMacro[CC <: Seq[String]]: TypeClass[CC] = new TypeClass[CC] {}
+}
+--
+
+[source, scala]
+--
+implicitly[TypeClass[Seq[String]]] // works
+implicitly[TypeClass[List[String]]] // compilation error: lol nope
 --
 
 === !
 
 Unless it's a whitebox macro/`transparent inline def`.
 
-(potwierdzić to zanim zacznę rysować)
+[source, scala]
+--
+import scala.language.experimental.macros, scala.reflect.macros.whitebox
+
+trait TypeClass[A]
+
+object TypeClass extends TypeClassLowPriority0 {
+
+  implicit def useMacro: TypeClass[List[String]] = macro TypeClass.useMacroImpl // <- whitebox!
+
+  def useMacroImpl(c: whitebox.Context): c.Expr[TypeClass[List[String]]] =
+    c.abort(c.enclosingPosition, "lol nope")
+}
+trait TypeClassLowPriority0 {
+
+  implicit def noMacro[CC <: Seq[String]]: TypeClass[CC] = new TypeClass[CC] {}
+}
+--
 
 [source, scala]
 --
-// TODO
+implicitly[TypeClass[Seq[String]]] // works
+implicitly[TypeClass[List[String]]] // also works!
 --
 
 === Chain of derivations
@@ -913,11 +949,49 @@ What happens when we summon `FastShowPretty[A]` with Mirrors?
 
 Image with mirros happy expansion
 
-=== !
+=== Semi-automatic derivation
 
-Why shapeless is faster?
+TODO
 
-Images with PRs with improvements
+=== Why is Scala 2 faster?
+
+[.small]
+[%step]
+* PR #5649 - _Faster compilation of inductive implicits_ (closed)
+* PR #6481 - _Topic/inductive implicits 2.13.x_ (closed)
+* PR #6580 - _Prune polymorphic implicits more aggressively_ (merged)
+* PR #7012 - _Speed up implicit resolution by avoiding allocations when traversing TypeRefs in core_ (merged)
+* and more
+
+[%step]
+[source, scala]
+--
+              1) baseline - scalac 2.13.x     2) scalac 2.13.x with matchesPtInst
+  HList Size
+   50            4                              3
+  100            7                              3
+  150           15                              4
+  200           28                              4
+  250           48                              5
+  300           81                              6
+  350          126                              8
+  400          189                             11
+  450          322                             13
+  500          405                             16         Compile time in seconds
+--
+
+[NOTE.speaker]
+--
+There was a series of Miles Sabin PRs improving performance of implicit resolution - 2 first PRs got closed but the third on got finally merged in 2.13-M5.
+
+Some of that work was ported to Scala 3 but perhaps not everything yet.
+--
+
+== Magnolia to the rescue
+
+TODO
+
+==
 
 == Summary
 
