@@ -578,9 +578,274 @@ I have to admit: I am cheating, Jsoniter parses and writes to String while, Circ
 
 But can it be automatic?
 
+[.small]
 == Automatic derivation a'la Chimney
 
+Similar problem:
+
+* macro should only use implicits for overrides
+* derivation should be recursive
+
+But:
+
+* automatic derivation should be available without breaking the 2 above
+
+[.small-h2]
+=== Solution
+
+[%step]
+[source,scala]
+--
+trait TypeClass[A] extends TypeClass.AutoDerived[A] { ... }
+object TypeClass {
+
+  // semi-automatic derivation of TypeClass[A]
+  inline def derived[A]: TypeClass[A] = ${ derivedImpl[A] }
+
+  trait AutoDerived[A] { ... }
+  object AutoDerived extends AutoDerivedLowPriorityImplicits
+  trait AutoDerivedLowPriorityImplicits {
+
+    // automatic derivation of TypeClass.AutoDerived[A]
+    inline given derived[A]: AutoDerived[A] = ${ derivedImpl[A] }
+  }
+}
+--
+
+[%step]
+[source,scala]
+--
+extension [A](value: A)
+  // uses TypeClass[A] defined by user manually or with TypeClass.derived,
+  // falling back on automatic derivation
+  def method(using TypeClass.AutoDerived[A]) = ...
+--
+
+[%step]
+[source,scala]
+--
+// allowed to try summoning TypeClass[Sth].
+// NOT allowed to try summoning TypeClass.AutoDerived[Sth]!
+def derivedImpl[A: Type]: Expr[TypeClass[A]] = ...
+--
+
+[%step]
+[.small]
+(Disclaimer: understanding this code is *not* necessary to understand its implications on the next slides)
+
+=== !
+
+Can we test it outside Chimney?
+
+[%step]
+Yes.
+
+[.small-h2]
+=== Sanely-automatic derivation
+
+I implemented wrapper around Jsoniter (on Scala 3-only) which works like this:
+
+[source,scala]
+--
 TODO
+--
+
+=== !
+
+How does it compare to Circe or normal Jsoniter Scala?
+
+=== !
+
+image::img/json-compilation-times-4.png[Json Compilation Times,80%,80%]
+
+[.small]
+(less is better)
+
+[NOTE.speaker]
+--
+
+[source]
+----
+                     Scala 2   Scala 3  Units
+compilation of      cold hot  cold hot
+circeGenericAuto      14   4    46  16      s
+circeGenericSemi      12   3    10   1      s
+circeMagnoliaAuto     13   2    65  32      s
+circeMagnoliaSemi     12   7    12   2      s
+jsoniterScalaSanely    -   -     9   1      s
+jsoniterScalaSemi     10   4     8   1      s
+----
+--
+
+=== !
+
+Scala 2.13.14
+
+[source,scala]
+--
+[info] Benchmark                          Mode  Cnt   Score   Error   Units
+[info] JsonRoundTrips.circeGenericAuto    thrpt  10   7.319 ± 0.011  ops/ms
+[info] JsonRoundTrips.circeGenericSemi    thrpt  10   6.775 ± 0.013  ops/ms
+[info] JsonRoundTrips.circeMagnoliaAuto   thrpt  10   7.689 ± 0.013  ops/ms
+[info] JsonRoundTrips.circeMagnoliaSemi   thrpt  10   7.838 ± 0.013  ops/ms
+[info] JsonRoundTrips.jsoniterScalaSemi   thrpt  10  20.081 ± 0.151  ops/ms
+--
+
+Scala 3.3.3
+
+[source,scala]
+--
+[info] Benchmark                            Mode  Cnt   Score   Error   Units
+[info] JsonRoundTrips.circeGenericAuto     thrpt   10   0.490 ± 0.432  ops/ms
+[info] JsonRoundTrips.circeGenericSemi     thrpt   10   4.607 ± 0.014  ops/ms
+[info] JsonRoundTrips.circeMagnoliaAuto    thrpt   10   0.077 ± 0.039  ops/ms
+[info] JsonRoundTrips.circeMagnoliaSemi    thrpt   10   5.590 ± 0.013  ops/ms
+[info] JsonRoundTrips.jsoniterScalaSemi    thrpt   10  21.480 ± 0.070  ops/ms
+[info] JsonRoundTrips.jsoniterScalaSanely  thrpt   10  21.408 ± 0.070  ops/ms
+--
+
+[.small]
+(more is better)
+
+=== !
+
+But *Jsoniter parsing `String` s* vs *Circe parsing `Json`* might be apples vs oranges.
+
+Can we have some more *fair* comparison?
+
+== More fair comparison
+
+=== !
+
+FastShowPretty code
+
+and example
+
+=== !
+
+[%step]
+* automatic and semi-automatic derivation using *Shapeless* (Scala 2)
+* automatic and semi-automatic derivation using *Mirror* s (Scala 3)
+* automatic and semi-automatic derivation using *Magnolia* (Scala 2 & 3)
+* sanely-automatic derivation with macros and *Chimney macro commons* (Scala 2 & 3)
+
+[NOTE.speaker]
+--
+For startes I implemented sanely-automatic derivation in naive way - inlining everything.
+--
+
+=== !
+
+image::img/show-compilation-times-1.png[Show Compilation Times,80%,80%]
+
+[.small]
+(less is better)
+
+[NOTE.speaker]
+--
+
+[source]
+----
+                            Scala 2   Scala 3  Units
+compilation of             cold hot  cold hot
+showGenericProgrammingAuto   15   5    53  29      s
+showGenericProgrammingSemi   10   2    10   2      s
+showMagnoliaAuto             10   1    43  15      s
+showMagnoliaSemi             10   2     9   1      s
+showSanely                   14   4    16   5      s
+----
+--
+
+=== !
+
+Scala 2.13.14
+
+[source,scala]
+--
+[info] Benchmark                                Mode  Cnt  Score   Error   Units
+[info] ShowOutputs.showGenericProgrammingAuto  thrpt   10  2.651 ± 0.012  ops/ms
+[info] ShowOutputs.showGenericProgrammingSemi  thrpt   10  2.829 ± 0.033  ops/ms
+[info] ShowOutputs.showMagnoliaAuto            thrpt   10  3.621 ± 0.017  ops/ms
+[info] ShowOutputs.showMagnoliaSemi            thrpt   10  3.745 ± 0.028  ops/ms
+[info] ShowOutputs.showSanely                  thrpt   10  2.202 ± 0.359  ops/ms
+--
+
+Scala 3.3.3
+
+[source,scala]
+--
+[info] Benchmark                                Mode  Cnt  Score   Error   Units
+[info] ShowOutputs.showGenericProgrammingAuto  thrpt   10  0.156 ± 0.013  ops/ms
+[info] ShowOutputs.showGenericProgrammingSemi  thrpt   10  3.492 ± 0.013  ops/ms
+[info] ShowOutputs.showMagnoliaAuto            thrpt   10  0.090 ± 0.023  ops/ms
+[info] ShowOutputs.showMagnoliaSemi            thrpt   10  3.918 ± 0.012  ops/ms
+[info] ShowOutputs.showSanely                  thrpt   10  2.204 ± 0.396  ops/ms
+--
+
+=== !
+
+[%step]
+But wait.
+
+[%step]
+Jsoniter had one more trick. It "caches" subroutines as `def` s.
+
+[%step]
+Would that make a difference?
+
+=== !
+
+image::img/show-compilation-times-2.png[Show Compilation Times,80%,80%]
+
+[.small]
+(less is better)
+
+[NOTE.speaker]
+--
+
+[source]
+----
+                            Scala 2   Scala 3  Units
+compilation of             cold hot  cold hot
+showGenericProgrammingAuto   15   5    53  29      s
+showGenericProgrammingSemi   10   2    10   2      s
+showMagnoliaAuto             10   1    43  15      s
+showMagnoliaSemi             10   2     9   1      s
+showSanely                    6   1     7   1      s
+----
+--
+
+=== !
+
+Scala 2.13.14
+
+[source,scala]
+--
+[info] Benchmark                                Mode  Cnt  Score   Error   Units
+[info] ShowOutputs.showGenericProgrammingAuto  thrpt   10  2.651 ± 0.012  ops/ms
+[info] ShowOutputs.showGenericProgrammingSemi  thrpt   10  2.829 ± 0.033  ops/ms
+[info] ShowOutputs.showMagnoliaAuto            thrpt   10  3.621 ± 0.017  ops/ms
+[info] ShowOutputs.showMagnoliaSemi            thrpt   10  3.745 ± 0.028  ops/ms
+[info] ShowOutputs.showSanely                  thrpt   10  4.811 ± 0.026  ops/ms
+--
+
+Scala 3.3.3
+
+[source,scala]
+--
+[info] Benchmark                                Mode  Cnt  Score   Error   Units
+[info] ShowOutputs.showGenericProgrammingAuto  thrpt   10  0.156 ± 0.013  ops/ms
+[info] ShowOutputs.showGenericProgrammingSemi  thrpt   10  3.492 ± 0.013  ops/ms
+[info] ShowOutputs.showMagnoliaAuto            thrpt   10  0.090 ± 0.023  ops/ms
+[info] ShowOutputs.showMagnoliaSemi            thrpt   10  3.918 ± 0.012  ops/ms
+[info] ShowOutputs.showSanely                  thrpt   10  4.800 ± 0.042  ops/ms
+--
+
+=== Bonus: debugging
+
+TODO: show compilation errors
+
+TODO: show logs from macro
 
 == Summary
 
