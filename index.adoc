@@ -26,11 +26,12 @@ Mateusz Kubuszok
 == Agenda
 
 [%step]
-* demo of an automatic and semiautomatic derivation
-* how automatic/semi-automatic derivation works
-* what does Magnolia bring to the table
-* example of a library with a different approach to semi-automatic
-* and an
+* what is type class
+* what is type class derivation
+* automatic and semi-automatic derivation a'la Circe
+* semi-automatic derivation a'la Jsoniter
+* sanely-automatic derivation a'la Chimney
+* does it matter to library users how these approach differ
 
 === Examples
 
@@ -43,96 +44,274 @@ https://github.com/MateuszKubuszok/derivation-benchmarks
 We cannot afford to have a study each example in deep, since it could take a whole day, so as a homework or an excercise for the reader here's the link.
 --
 
-== (De)motivating example
-
-=== Type class
-
-[source, scala]
---
-// from Circe
-trait Encoder[A] {
-
-  def apply(a: A): Json
-}
---
+== Type class
 
 [%step]
-[source, scala]
---
-// from Circe
-trait Decoder[A] extends Serializable {
-
-  def apply(c: HCursor): Decoder.Result[A]
-
-  final def decodeJson(j: Json): Decoder.Result[A] = apply(HCursor.fromJson(j))
-}
---
-
-[%step]
-[source, scala]
---
-// our own invention
-trait FastShowPretty[A] {
-
-  def showPretty(
-    value:   A,
-    sb:      StringBuilder,
-    indent:  String = "  ",
-    nesting: Int = 0
-  ): StringBuilder
-}
---
-
-[NOTE.speaker]
---
-Examples of type classes, used like this (next slide).
---
+* interface
+* with type paremeters
+* whose implementation can be automatically provided based on their type only
 
 === !
 
 [source, scala]
 --
-// Circe's extension method
-val value: List[String]
-val json: Json = value.asJson // implicit Encoder[List[String]]
+trait Encoder[A] {
+  def apply(a: A): Json // <-- JSON as data
+}
+object Encoder {
+  given encodeString: Encoder[String] = ...
+  given encodeInt: Encoder[Int] = ...
+  given encodeDouble: Encoder[Double] = ...
+}
 --
 
 [%step]
 [source, scala]
 --
-// Json's build-in method
-val json: Json
-val value: List[String] = json.as[List[String]] // implicit Decoder[List[String]]
+extension [A](value: A) {
+  def asJson(using encoder: Encoder[A]): Json = encoder(value)
+}
 --
 
 [%step]
 [source, scala]
 --
-// our own extension method
-val value: List[String]
-val string: String = value.showPretty() // implicit FastShowPretty[List[String]]
+"value".asJson // using Encoder.encodeString
+1024.asJson // using Encoder.encodeInt
+3.13.asJson // using Encoder.encodeDouble
 --
 
-[NOTE.speaker]
---
-What when there is no predefined type class instance?
---
+=== !
 
-=== Type class derivation
+What if nobody wrote the implementation explicitly for my type?
 
 [%step]
-* there are some build-in instances
-* there is a way of combining instances for each field
-  into an instance for a whole `case class`
-* there is a way of combining instances for each subtype
-  into an instance for a whole `sealed` type
+[source, scala]
+--
+case class Address(value: String)
+case class User(name: String, address: Address)
+--
+
+[%step]
+[source, scala]
+--
+Address("Paper St. 19").asJson // ???
+User("John Smith", Address("Paper St. 19")).asJson // ???
+--
+
+[%step]
+[source]
+--
+No given instance of type Encoder[Address] was found for parameter encoder of
+method asJson in object ...
+No given instance of type Encoder[User] was found for parameter encoder of
+method asJson in object ...
+--
+
+== Type class derivation
+
+image::img/derivation.png[Derivation,100%,100%]
 
 [NOTE.speaker]
 --
-* e.g. handling primitives for JSON
-* e.g. treating each `case class` field as JSON object field
-* e.g. using discriminating value in JSON
+* for some types implementations are some build-in
+* someone provided a way of combining implementations for each field
+  into an implementation for a whole `case class`
+* someone provided a way of combining implementations for each subtype
+  into an implementation for a whole `sealed` type
+* someone is usually the library's author
 --
+
+=== Derivation a'la Circe
+
+=== !
+
+[source, scala]
+--
+trait Encoder[A] {
+  def apply(a: A): Json // <-- JSON as data
+}
+--
+
+[%step]
+[source, scala]
+--
+extension [A](value: A) {
+  def asJson(using encoder: Encoder[A]): Json = encoder(value)
+}
+--
+
+[%step]
+[source, scala]
+--
+case class Address(value: String)
+case class User(name: String, address: Address)
+--
+
+[%step]
+[source, scala]
+--
+import MagicImportOfSomethingThatCreatesEncoders.given
+
+Address("Paper St. 19").asJson // generates Encoder[Address] on demand
+User("John Smith", Address("Paper St. 19")).asJson // ditto but for User
+--
+
+[%step]
+[source, scala]
+--
+import ImportOfSomethingThatLetsYouCreateEncoders.deriveEncoder
+
+given addressEncoder: Encoder[Address] = deriveEncoder[Address]
+given userEncoder: Encoder[User] = deriveEncoder[User]
+
+Address("Paper St. 19").asJson // using addressEncoder
+User("John Smith", Address("Paper St. 19")).asJson // using userEncoder
+--
+
+[NOTE.speaker]
+--
+* reminder what API we have
+* automatic derivation - sometimes it's always on by default
+* automatic derivation has to work as a fallback to existing values
+* semiautomatic derivation - sometimes it's defined in the compatnion object
+* semiautomatic derivation must create a new value without looking for it in implicit scope, or NullPointerException/InitializationError/StackOverflowException
+--
+
+[.small-h2]
+=== Automatic derivation of Address
+
+[source, scala]
+--
+implicitly[Encoder[Address]] // <-- using Encoder[Address]
+--
+
+image::img/automatic-derivation-of-Address.png[Automatic Derivation of Address,100%,100%]
+
+[NOTE.speaker]
+--
+For simplicity we're ignoring the sealed scenario
+--
+
+[.small-h2]
+=== Semi-automatic derivation of Address
+
+[source, scala]
+--
+deriveEncoder[Address] // <-- creates new Encoder[Address]
+--
+
+image::img/semi-automatic-derivation-of-Address.png[Semi-automatic Derivation of Address,100%,100%]
+
+[NOTE.speaker]
+--
+For simplicity we're ignoring the sealed scenario
+--
+
+[.small-h2]
+=== Automatic derivation of User
+
+[source, scala]
+--
+implicitly[Encoder[User]] // <-- using Encoder[User]
+--
+
+image::img/automatic-derivation-of-User.png[Automatic Derivation of User,100%,100%]
+
+[NOTE.speaker]
+--
+For simplicity we're ignoring the sealed scenario
+--
+
+[.small-h2]
+=== Semi-automatic derivation of User
+
+[source, scala]
+--
+implicitly[Encoder[User]] // <-- creates new Encoder[User]
+--
+
+image::img/semi-automatic-derivation-of-User.png[Semi-automatic Derivation of User,100%,100%]
+
+[NOTE.speaker]
+--
+For simplicity we're ignoring the sealed scenario
+--
+
+== OK, but where is the code?
+
+Wouldn't it be easier to understand with some examples?
+
+=== 1. We are focusing on user-side of the derivation story
+
+=== 2. Code is in the link
+
+image::img/qr-code.png[Link to examples,40%,40%]
+
+https://github.com/MateuszKubuszok/derivation-benchmarks
+
+[.small-h2]
+=== 3. If you really need the derivation-internals-explanation-experience
+
+[%step]
+image::img/3-hours-later.jpg[3h later,80%,80%]
+
+[NOTE.speaker]
+--
+...imagine it's 3h later, you saw a lot of code examples and you understand at best as much as you do now.
+--
+
+== Why people bother with semi-automatic derivation?
+
+=== 1. They want to make sure that they use the same implementation everywhere
+
+[NOTE.speaker]
+--
+We're not going to question that use case.
+--
+
+=== 2. Speed
+
+=== !
+
+[source, scala]
+--
+// We're use Circe:
+// trait Encoder[A] { ... } turns A -> Json
+// trait Decoder[A] { ... } turns Json -> Either[Decoder.DecodingError, A]
+
+case class Out(...) // <-- really big case class with nested case classes
+
+// value -> Json -> value again
+def roundTrip(out: Out): (Json, Either[Decoder.DecodingError, Out]) = {
+  val json = out.asJson // <-- encode as Json using Encoder[Out]
+  val parsed = json.as[Out] // <-- decode from Json using  Decoder[Out]
+  json -> parsed
+}
+--
+
+This shouldn't be hard?
+
+[NOTE.speaker]
+--
+We're going to use Circe.
+--
+
+=== !
+
+TODO: image with compilation times
+
+TODO: image with benchmarks times
+
+[NOTE.speaker]
+--
+circeGenericAuto      14   4    46  16      s
+circeGenericSemi      12   3    10   1      s
+circeMagnoliaAuto     13   2    65  32      s
+circeMagnoliaSemi     12   7    12   2      s
+--
+
+== To delete
 
 === Exhibit A(utomatic)
 
@@ -1077,9 +1256,154 @@ implicit val outDecoder: Decoder[Out] = {
 }
 --
 
-== Magnolia to the rescue
+== Magnolia to the rescue(?)
 
-TODO
+=== !
+
+Let's change
+
+[source, scala]
+--
+final case class In1(int: Int)
+final case class In2(i11: In1, i12: In1)
+final case class In3(i21: In2, i22: In2, i23: In2)
+final case class In4(i31: In3, i32: In3, i33: In3, i34: In3)
+final case class In5(i41: In4, i42: In4, i43: In4, i44: In4, i45: In4)
+final case class Out(i1:  In5, i2:  In5, i3:  In5, i4:  In5, i5:  In5, i6:  In5)
+--
+
+into
+
+[source, scala]
+--
+class NewType private (val value: Int) extends AnyVal
+object NewType {
+  def unsafe(value: Int): NewType = new NewType(value)
+}
+final class In1(int: NewType) // <-- no Endocer/Decoder for NewType
+final case class In2(i11: In1, i12: In1)
+final case class In3(i21: In2, i22: In2, i23: In2)
+final case class In4(i31: In3, i32: In3, i33: In3, i34: In3)
+final case class In5(i41: In4, i42: In4, i43: In4, i44: In4, i45: In4)
+final case class Out(i1:  In5, i2:  In5, i3:  In5, i4:  In5, i5:  In5, i6:  In5)
+--
+
+=== ! 
+
+[source]
+--
+sbt:root> circeGenericAuto/compile
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
+circe-generic-auto/target/jvm-2.13/classes ...
+[error] /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-auto/src/
+main/scala/example/CirceGenericAuto.scala:12:20:
+could not find implicit value for parameter encoder: io.circe.Encoder[example.model1.Out]
+[error]     val json = out.asJson
+[error]                    ^
+[error] one error found
+[error] (circeGenericAuto / Compile / compileIncremental) Compilation failed
+[error] Total time: 6 s, completed Sep 20, 2024, 10:47:08 AM
+sbt:root>
+--
+
+[source]
+--
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
+circe-generic-auto/target/jvm-3/classes ...
+[error] -- Error: /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-auto/
+src/main/scala/example/CirceGenericAuto.scala:12:25
+[error] 12 |    val json = out.asJson
+[error]    |                         ^
+[error]    |               Failed to find an instance of Encoder[example.model1.In5]
+[error] -- Error: /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-auto/
+src/main/scala/example/CirceGenericAuto.scala:13:29
+[error] 13 |    val parsed = json.as[Out]
+[error]    |                             ^
+[error]    |               Failed to find an instance of Decoder[example.model1.In5]
+[error] two errors found
+[error] (circeGenericAuto3 / Compile / compileIncremental) Compilation failed
+[error] Total time: 4 s, completed Sep 20, 2024, 10:51:11 AM
+sbt:root>
+--
+
+=== !
+
+[source]
+--
+sbt:root> circeGenericSemi/run
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
+test-classes/target/jvm-2.13/classes ...
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
+circe-generic-semi/target/jvm-2.13/classes ...
+[error] /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/src/main/
+scala/example/CirceGenericSemi.scala:11:51:
+could not find Lazy implicit value of type io.circe.generic.decoding.DerivedDecoder[example.model1.In1]
+[error]   implicit private val in1Decoder: Decoder[In1] = deriveDecoder
+[error]                                                   ^
+[error] /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/src/main/
+scala/example/CirceGenericSemi.scala:12:51:
+could not find Lazy implicit value of type io.circe.generic.encoding.DerivedAsObjectEncoder[example.model1.In1]
+[error]   implicit private val in1Encoder: Encoder[In1] = deriveEncoder
+[error]                                                   ^
+[error] two errors found
+[error] (circeGenericSemi / Compile / compileIncremental) Compilation failed
+[error] Total time: 9 s, completed Sep 20, 2024, 10:54:02 AM
+sbt:root>
+--
+
+[source]
+--
+sbt:root> circeGenericSemi3/run
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
+circe-generic-semi/target/jvm-3/classes ...
+[error] -- Error: /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/
+src/main/scala/example/CirceGenericSemi.scala:11:50
+[error]  11 |  implicit private val in1Decoder: Decoder[In1] = deriveDecoder
+[error]     |                                                  ^^^^^^^^^^^^^
+[error]     |cannot reduce summonFrom with
+[error]     | patterns :  case given decodeA @ _:io.circe.Decoder[example.model1.NewType]
+[error]     |             case given m @ _:scala.deriving.Mirror.Of[example.model1.NewType]
+[error]     |---------------------------------------------------------------------------
+[error]     |Inline stack trace
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:67
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:67
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:67
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:67
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:67
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:67
+[error]      ---------------------------------------------------------------------------
+[error] -- Error: /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/
+src/main/scala/example/CirceGenericSemi.scala:12:50
+[error]  12 |  implicit private val in1Encoder: Encoder[In1] = deriveEncoder
+[error]     |                                                  ^^^^^^^^^^^^^
+[error]     |cannot reduce summonFrom with
+[error]     | patterns :  case given encodeA @ _:io.circe.Encoder[example.model1.NewType]
+[error]     |             case given m @ _:scala.deriving.Mirror.Of[example.model1.NewType]
+[error]     |---------------------------------------------------------------------------
+[error]     |Inline stack trace
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:44
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:44
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:44
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:44
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:44
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:44
+[error]      ---------------------------------------------------------------------------
+[error] two errors found
+[error] (circeGenericSemi3 / Compile / compileIncremental) Compilation failed
+[error] Total time: 3 s, completed Sep 20, 2024, 10:53:18 AM
+--
 
 == What if semi was recursive OOTB?
 

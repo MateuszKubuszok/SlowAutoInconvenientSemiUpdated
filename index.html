@@ -418,44 +418,84 @@ ul.byline li + li {
 <div class="paragraph"><p>Mateusz Kubuszok</p></div></div></section>
 <section id="_about_me"><h2>About me</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>breaking things in Scala for 9 years</p></li><li class="fragment"><p>a little bit of open source - including co-authoring Chimney for almost 7 years now</p></li><li class="fragment"><p>blog at <a href="https://kubuszok.com">Kubuszok.com</a></p></li><li class="fragment"><p>niche <a href="https://leanpub.com/jvm-scala-book">Things you need to know about JVM (that matter in Scala)</a> ebook</p></li></ul></div>
 <aside class="notes"></aside></div></section>
-<section><section id="_agenda"><h2>Agenda</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>demo of an automatic and semiautomatic derivation</p></li><li class="fragment"><p>how automatic/semi-automatic derivation works</p></li><li class="fragment"><p>what does Magnolia bring to the table</p></li><li class="fragment"><p>example of a library with a different approach to semi-automatic</p></li><li class="fragment"><p>and an</p></li></ul></div></div></section><section id="_examples"><h2>Examples</h2><div class="slide-content"><div class="imageblock"><img src="img/qr-code.png" alt="Link to examples" width="40%" height="40%"></div>
+<section><section id="_agenda"><h2>Agenda</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>what is type class</p></li><li class="fragment"><p>what is type class derivation</p></li><li class="fragment"><p>automatic and semi-automatic derivation a&#8217;la Circe</p></li><li class="fragment"><p>semi-automatic derivation a&#8217;la Jsoniter</p></li><li class="fragment"><p>sanely-automatic derivation a&#8217;la Chimney</p></li><li class="fragment"><p>does it matter to library users how these approach differ</p></li></ul></div></div></section><section id="_examples"><h2>Examples</h2><div class="slide-content"><div class="imageblock"><img src="img/qr-code.png" alt="Link to examples" width="40%" height="40%"></div>
 <div class="paragraph"><p><a href="https://github.com/MateuszKubuszok/derivation-benchmarks" class="bare">https://github.com/MateuszKubuszok/derivation-benchmarks</a></p></div>
 <aside class="notes"><div class="paragraph"><p>We cannot afford to have a study each example in deep, since it could take a whole day, so as a homework or an excercise for the reader here&#8217;s the link.</p></div></aside></div></section></section>
-<section><section id="_demotivating_example"><h2>(De)motivating example</h2></section><section id="_type_class"><h2>Type class</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// from Circe
-trait Encoder[A] {
-
-  def apply(a: A): Json
+<section><section id="_type_class"><h2>Type class</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>interface</p></li><li class="fragment"><p>with type paremeters</p></li><li class="fragment"><p>whose implementation can be automatically provided based on their type only</p></li></ul></div></div></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">trait Encoder[A] {
+  def apply(a: A): Json // &lt;-- JSON as data
+}
+object Encoder {
+  given encodeString: Encoder[String] = ...
+  given encodeInt: Encoder[Int] = ...
+  given encodeDouble: Encoder[Double] = ...
 }</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// from Circe
-trait Decoder[A] extends Serializable {
-
-  def apply(c: HCursor): Decoder.Result[A]
-
-  final def decodeJson(j: Json): Decoder.Result[A] = apply(HCursor.fromJson(j))
+<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">extension [A](value: A) {
+  def asJson(using encoder: Encoder[A]): Json = encoder(value)
 }</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// our own invention
-trait FastShowPretty[A] {
-
-  def showPretty(
-    value:   A,
-    sb:      StringBuilder,
-    indent:  String = "  ",
-    nesting: Int = 0
-  ): StringBuilder
+<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">"value".asJson // using Encoder.encodeString
+1024.asJson // using Encoder.encodeInt
+3.13.asJson // using Encoder.encodeDouble</code></pre></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>What if nobody wrote the implementation explicitly for my type?</p></div>
+<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class Address(value: String)
+case class User(name: String, address: Address)</code></pre></div></div>
+<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">Address("Paper St. 19").asJson // ???
+User("John Smith", Address("Paper St. 19")).asJson // ???</code></pre></div></div>
+<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">No given instance of type Encoder[Address] was found for parameter encoder of
+method asJson in object ...
+No given instance of type Encoder[User] was found for parameter encoder of
+method asJson in object ...</code></pre></div></div></div></section></section>
+<section><section id="_type_class_derivation"><h2>Type class derivation</h2><div class="slide-content"><div class="imageblock"><img src="img/derivation.png" alt="Derivation" width="100%" height="100%"></div><aside class="notes"><div class="ulist"><ul><li><p>for some types implementations are some build-in</p></li><li><p>someone provided a way of combining implementations for each field
+into an implementation for a whole <code>case class</code></p></li><li><p>someone provided a way of combining implementations for each subtype
+into an implementation for a whole <code>sealed</code> type</p></li><li><p>someone is usually the library&#8217;s author</p></li></ul></div></aside></div></section><section id="_derivation_ala_circe"><h2>Derivation a&#8217;la Circe</h2></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">trait Encoder[A] {
+  def apply(a: A): Json // &lt;-- JSON as data
 }</code></pre></div></div>
-<aside class="notes"><div class="paragraph"><p>Examples of type classes, used like this (next slide).</p></div></aside></div></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// Circe's extension method
-val value: List[String]
-val json: Json = value.asJson // implicit Encoder[List[String]]</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// Json's build-in method
-val json: Json
-val value: List[String] = json.as[List[String]] // implicit Decoder[List[String]]</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// our own extension method
-val value: List[String]
-val string: String = value.showPretty() // implicit FastShowPretty[List[String]]</code></pre></div></div>
-<aside class="notes"><div class="paragraph"><p>What when there is no predefined type class instance?</p></div></aside></div></section><section id="_type_class_derivation"><h2>Type class derivation</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>there are some build-in instances</p></li><li class="fragment"><p>there is a way of combining instances for each field
-into an instance for a whole <code>case class</code></p></li><li class="fragment"><p>there is a way of combining instances for each subtype
-into an instance for a whole <code>sealed</code> type</p></li></ul></div>
-<aside class="notes"><div class="ulist"><ul><li><p>e.g. handling primitives for JSON</p></li><li><p>e.g. treating each <code>case class</code> field as JSON object field</p></li><li><p>e.g. using discriminating value in JSON</p></li></ul></div></aside></div></section><section id="_exhibit_automatic"><h2>Exhibit A(utomatic)</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">final case class In1(int: Int) // e.g. { "int": 1 }
+<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">extension [A](value: A) {
+  def asJson(using encoder: Encoder[A]): Json = encoder(value)
+}</code></pre></div></div>
+<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class Address(value: String)
+case class User(name: String, address: Address)</code></pre></div></div>
+<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import MagicImportOfSomethingThatCreatesEncoders.given
+
+Address("Paper St. 19").asJson // generates Encoder[Address] on demand
+User("John Smith", Address("Paper St. 19")).asJson // ditto but for User</code></pre></div></div>
+<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import ImportOfSomethingThatLetsYouCreateEncoders.deriveEncoder
+
+given addressEncoder: Encoder[Address] = deriveEncoder[Address]
+given userEncoder: Encoder[User] = deriveEncoder[User]
+
+Address("Paper St. 19").asJson // using addressEncoder
+User("John Smith", Address("Paper St. 19")).asJson // using userEncoder</code></pre></div></div>
+<aside class="notes"><div class="ulist"><ul><li><p>reminder what API we have</p></li><li><p>automatic derivation - sometimes it&#8217;s always on by default</p></li><li><p>automatic derivation has to work as a fallback to existing values</p></li><li><p>semiautomatic derivation - sometimes it&#8217;s defined in the compatnion object</p></li><li><p>semiautomatic derivation must create a new value without looking for it in implicit scope, or NullPointerException/InitializationError/StackOverflowException</p></li></ul></div></aside></div></section><section id="_automatic_derivation_of_address" class="small-h2"><h2>Automatic derivation of Address</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">implicitly[Encoder[Address]] // &lt;-- using Encoder[Address]</code></pre></div></div>
+<div class="imageblock"><img src="img/automatic-derivation-of-Address.png" alt="Automatic Derivation of Address" width="100%" height="100%"></div>
+<aside class="notes"><div class="paragraph"><p>For simplicity we&#8217;re ignoring the sealed scenario</p></div></aside></div></section><section id="_semi_automatic_derivation_of_address" class="small-h2"><h2>Semi-automatic derivation of Address</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">deriveEncoder[Address] // &lt;-- creates new Encoder[Address]</code></pre></div></div>
+<div class="imageblock"><img src="img/semi-automatic-derivation-of-Address.png" alt="Semi-automatic Derivation of Address" width="100%" height="100%"></div>
+<aside class="notes"><div class="paragraph"><p>For simplicity we&#8217;re ignoring the sealed scenario</p></div></aside></div></section><section id="_automatic_derivation_of_user" class="small-h2"><h2>Automatic derivation of User</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">implicitly[Encoder[User]] // &lt;-- using Encoder[User]</code></pre></div></div>
+<div class="imageblock"><img src="img/automatic-derivation-of-User.png" alt="Automatic Derivation of User" width="100%" height="100%"></div>
+<aside class="notes"><div class="paragraph"><p>For simplicity we&#8217;re ignoring the sealed scenario</p></div></aside></div></section><section id="_semi_automatic_derivation_of_user" class="small-h2"><h2>Semi-automatic derivation of User</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">implicitly[Encoder[User]] // &lt;-- creates new Encoder[User]</code></pre></div></div>
+<div class="imageblock"><img src="img/semi-automatic-derivation-of-User.png" alt="Semi-automatic Derivation of User" width="100%" height="100%"></div>
+<aside class="notes"><div class="paragraph"><p>For simplicity we&#8217;re ignoring the sealed scenario</p></div></aside></div></section></section>
+<section><section id="_ok_but_where_is_the_code"><h2>OK, but where is the code?</h2><div class="slide-content"><div class="paragraph"><p>Wouldn&#8217;t it be easier to understand with some examples?</p></div></div></section><section id="_1_we_are_focusing_on_user_side_of_the_derivation_story"><h2>1. We are focusing on user-side of the derivation story</h2></section><section id="_2_code_is_in_the_link"><h2>2. Code is in the link</h2><div class="slide-content"><div class="imageblock"><img src="img/qr-code.png" alt="Link to examples" width="40%" height="40%"></div>
+<div class="paragraph"><p><a href="https://github.com/MateuszKubuszok/derivation-benchmarks" class="bare">https://github.com/MateuszKubuszok/derivation-benchmarks</a></p></div></div></section><section id="_3_if_you_really_need_the_derivation_internals_explanation_experience" class="small-h2"><h2>3. If you really need the derivation-internals-explanation-experience</h2><div class="slide-content"><div class="imageblock fragment"><img src="img/3-hours-later.jpg" alt="3h later" width="80%" height="80%"></div>
+<aside class="notes"><div class="paragraph"><p>&#8230;&#8203;imagine it&#8217;s 3h later, you saw a lot of code examples and you understand at best as much as you do now.</p></div></aside></div></section></section>
+<section><section id="_why_people_bother_with_semi_automatic_derivation"><h2>Why people bother with semi-automatic derivation?</h2></section><section id="_1_they_want_to_make_sure_that_they_use_the_same_implementation_everywhere"><h2>1. They want to make sure that they use the same implementation everywhere</h2><div class="slide-content"><aside class="notes"><div class="paragraph"><p>We&#8217;re not going to question that use case.</p></div></aside></div></section><section id="_2_speed"><h2>2. Speed</h2></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// We're use Circe:
+// trait Encoder[A] { ... } turns A -&gt; Json
+// trait Decoder[A] { ... } turns Json -&gt; Either[Decoder.DecodingError, A]
+
+case class Out(...) // &lt;-- really big case class with nested case classes
+
+// value -&gt; Json -&gt; value again
+def roundTrip(out: Out): (Json, Either[Decoder.DecodingError, Out]) = {
+  val json = out.asJson // &lt;-- encode as Json using Encoder[Out]
+  val parsed = json.as[Out] // &lt;-- decode from Json using  Decoder[Out]
+  json -&gt; parsed
+}</code></pre></div></div>
+<div class="paragraph"><p>This shouldn&#8217;t be hard?</p></div>
+<aside class="notes"><div class="paragraph"><p>We&#8217;re going to use Circe.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>TODO: image with compilation times</p></div>
+<div class="paragraph"><p>TODO: image with benchmarks times</p></div>
+<aside class="notes"><div class="paragraph"><p>circeGenericAuto      14   4    46  16      s
+circeGenericSemi      12   3    10   1      s
+circeMagnoliaAuto     13   2    65  32      s
+circeMagnoliaSemi     12   7    12   2      s</p></div></aside></div></section></section>
+<section><section id="_to_delete"><h2>To delete</h2></section><section id="_exhibit_automatic"><h2>Exhibit A(utomatic)</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">final case class In1(int: Int) // e.g. { "int": 1 }
 final case class In2(i11: In1, i12: In1) // e.g. { "i11": { "int": 1 }, ... }
 final case class In3(i21: In2, i22: In2, i23: In2) // { e.g. "i21": { "i11": ..., ... }, ... }
 final case class In4(i31: In3, i32: In3, i33: In3, i34: In3) // etc
@@ -976,7 +1016,119 @@ implicit val outDecoder: Decoder[Out] = {
   import io.circe.generic.auto.*
   deriveDecoder
 }</code></pre></div></div></div></section></section>
-<section id="_magnolia_to_the_rescue"><h2>Magnolia to the rescue</h2><div class="slide-content"><div class="paragraph"><p>TODO</p></div></div></section>
+<section><section id="_magnolia_to_the_rescue"><h2>Magnolia to the rescue(?)</h2></section><section><div class="slide-content"><div class="paragraph"><p>Let&#8217;s change</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">final case class In1(int: Int)
+final case class In2(i11: In1, i12: In1)
+final case class In3(i21: In2, i22: In2, i23: In2)
+final case class In4(i31: In3, i32: In3, i33: In3, i34: In3)
+final case class In5(i41: In4, i42: In4, i43: In4, i44: In4, i45: In4)
+final case class Out(i1:  In5, i2:  In5, i3:  In5, i4:  In5, i5:  In5, i6:  In5)</code></pre></div></div>
+<div class="paragraph"><p>into</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">class NewType private (val value: Int) extends AnyVal
+object NewType {
+  def unsafe(value: Int): NewType = new NewType(value)
+}
+final class In1(int: NewType) // &lt;-- no Endocer/Decoder for NewType
+final case class In2(i11: In1, i12: In1)
+final case class In3(i21: In2, i22: In2, i23: In2)
+final case class In4(i31: In3, i32: In3, i33: In3, i34: In3)
+final case class In5(i41: In4, i42: In4, i43: In4, i44: In4, i45: In4)
+final case class Out(i1:  In5, i2:  In5, i3:  In5, i4:  In5, i5:  In5, i6:  In5)</code></pre></div></div></div></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">sbt:root&gt; circeGenericAuto/compile
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
+circe-generic-auto/target/jvm-2.13/classes ...
+[error] /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-auto/src/
+main/scala/example/CirceGenericAuto.scala:12:20:
+could not find implicit value for parameter encoder: io.circe.Encoder[example.model1.Out]
+[error]     val json = out.asJson
+[error]                    ^
+[error] one error found
+[error] (circeGenericAuto / Compile / compileIncremental) Compilation failed
+[error] Total time: 6 s, completed Sep 20, 2024, 10:47:08 AM
+sbt:root&gt;</code></pre></div></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
+circe-generic-auto/target/jvm-3/classes ...
+[error] -- Error: /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-auto/
+src/main/scala/example/CirceGenericAuto.scala:12:25
+[error] 12 |    val json = out.asJson
+[error]    |                         ^
+[error]    |               Failed to find an instance of Encoder[example.model1.In5]
+[error] -- Error: /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-auto/
+src/main/scala/example/CirceGenericAuto.scala:13:29
+[error] 13 |    val parsed = json.as[Out]
+[error]    |                             ^
+[error]    |               Failed to find an instance of Decoder[example.model1.In5]
+[error] two errors found
+[error] (circeGenericAuto3 / Compile / compileIncremental) Compilation failed
+[error] Total time: 4 s, completed Sep 20, 2024, 10:51:11 AM
+sbt:root&gt;</code></pre></div></div></div></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">sbt:root&gt; circeGenericSemi/run
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
+test-classes/target/jvm-2.13/classes ...
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
+circe-generic-semi/target/jvm-2.13/classes ...
+[error] /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/src/main/
+scala/example/CirceGenericSemi.scala:11:51:
+could not find Lazy implicit value of type io.circe.generic.decoding.DerivedDecoder[example.model1.In1]
+[error]   implicit private val in1Decoder: Decoder[In1] = deriveDecoder
+[error]                                                   ^
+[error] /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/src/main/
+scala/example/CirceGenericSemi.scala:12:51:
+could not find Lazy implicit value of type io.circe.generic.encoding.DerivedAsObjectEncoder[example.model1.In1]
+[error]   implicit private val in1Encoder: Encoder[In1] = deriveEncoder
+[error]                                                   ^
+[error] two errors found
+[error] (circeGenericSemi / Compile / compileIncremental) Compilation failed
+[error] Total time: 9 s, completed Sep 20, 2024, 10:54:02 AM
+sbt:root&gt;</code></pre></div></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">sbt:root&gt; circeGenericSemi3/run
+[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
+circe-generic-semi/target/jvm-3/classes ...
+[error] -- Error: /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/
+src/main/scala/example/CirceGenericSemi.scala:11:50
+[error]  11 |  implicit private val in1Decoder: Decoder[In1] = deriveDecoder
+[error]     |                                                  ^^^^^^^^^^^^^
+[error]     |cannot reduce summonFrom with
+[error]     | patterns :  case given decodeA @ _:io.circe.Decoder[example.model1.NewType]
+[error]     |             case given m @ _:scala.deriving.Mirror.Of[example.model1.NewType]
+[error]     |---------------------------------------------------------------------------
+[error]     |Inline stack trace
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:67
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:67
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:67
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:67
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:67
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:67
+[error]      ---------------------------------------------------------------------------
+[error] -- Error: /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/
+src/main/scala/example/CirceGenericSemi.scala:12:50
+[error]  12 |  implicit private val in1Encoder: Encoder[In1] = deriveEncoder
+[error]     |                                                  ^^^^^^^^^^^^^
+[error]     |cannot reduce summonFrom with
+[error]     | patterns :  case given encodeA @ _:io.circe.Encoder[example.model1.NewType]
+[error]     |             case given m @ _:scala.deriving.Mirror.Of[example.model1.NewType]
+[error]     |---------------------------------------------------------------------------
+[error]     |Inline stack trace
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:44
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:44
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:44
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:44
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:44
+[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[error]     |This location contains code that was inlined from package.scala:44
+[error]      ---------------------------------------------------------------------------
+[error] two errors found
+[error] (circeGenericSemi3 / Compile / compileIncremental) Compilation failed
+[error] Total time: 3 s, completed Sep 20, 2024, 10:53:18 AM</code></pre></div></div></div></section></section>
 <section id="_what_if_semi_was_recursive_ootb"><h2>What if semi was recursive OOTB?</h2><div class="slide-content"><div class="paragraph"><p>TODO: show auto/semi and then jsoniter</p></div>
 <div class="paragraph"><p>TODO: differences in philosphy</p></div>
 <div class="paragraph"><p>TODO: benchmarks</p></div>

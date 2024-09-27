@@ -6,7 +6,7 @@ $backgroundColor: #2b2b2b;
 
 // Primary/body text
 $mainFont: 'Lato', sans-serif;
-$mainFontSize: 35px;
+$mainFontSize: 45px;
 $mainColor: #eee;
 
 // Vertical spacing between blocks of text
@@ -45,3 +45,4 @@ $selectionColor: #fff;
 }
 
 .small { font-size: 24px; }
+.small-h2 h2 { font-size: 1.60em !important; }
