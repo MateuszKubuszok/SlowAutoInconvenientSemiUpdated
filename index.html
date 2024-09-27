@@ -472,7 +472,8 @@ User("John Smith", Address("Paper St. 19")).asJson // using userEncoder</code></
 <div class="imageblock"><img src="img/automatic-derivation-of-User.png" alt="Automatic Derivation of User" width="100%" height="100%"></div>
 <aside class="notes"><div class="paragraph"><p>For simplicity we&#8217;re ignoring the sealed scenario</p></div></aside></div></section><section id="_semi_automatic_derivation_of_user" class="small-h2"><h2>Semi-automatic derivation of User</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">implicitly[Encoder[User]] // &lt;-- creates new Encoder[User]</code></pre></div></div>
 <div class="imageblock"><img src="img/semi-automatic-derivation-of-User.png" alt="Semi-automatic Derivation of User" width="100%" height="100%"></div>
-<aside class="notes"><div class="paragraph"><p>For simplicity we&#8217;re ignoring the sealed scenario</p></div></aside></div></section></section>
+<aside class="notes"><div class="paragraph"><p>For simplicity we&#8217;re ignoring the sealed scenario</p></div></aside>
+<div class="paragraph"><p>TODO: add example with lists of</p></div></div></section></section>
 <section><section id="_ok_but_where_is_the_code"><h2>OK, but where is the code?</h2><div class="slide-content"><div class="paragraph"><p>Wouldn&#8217;t it be easier to understand with some examples?</p></div></div></section><section id="_1_we_are_focusing_on_user_side_of_the_derivation_story"><h2>1. We are focusing on user-side of the derivation story</h2></section><section id="_2_code_is_in_the_link"><h2>2. Code is in the link</h2><div class="slide-content"><div class="imageblock"><img src="img/qr-code.png" alt="Link to examples" width="40%" height="40%"></div>
 <div class="paragraph"><p><a href="https://github.com/MateuszKubuszok/derivation-benchmarks" class="bare">https://github.com/MateuszKubuszok/derivation-benchmarks</a></p></div></div></section><section id="_3_if_you_really_need_the_derivation_internals_explanation_experience" class="small-h2"><h2>3. If you really need the derivation-internals-explanation-experience</h2><div class="slide-content"><div class="imageblock fragment"><img src="img/3-hours-later.jpg" alt="3h later" width="80%" height="80%"></div>
 <aside class="notes"><div class="paragraph"><p>&#8230;&#8203;imagine it&#8217;s 3h later, you saw a lot of code examples and you understand at best as much as you do now.</p></div></aside></div></section></section>
@@ -489,659 +490,97 @@ def roundTrip(out: Out): (Json, Either[Decoder.DecodingError, Out]) = {
   json -&gt; parsed
 }</code></pre></div></div>
 <div class="paragraph"><p>This shouldn&#8217;t be hard?</p></div>
-<aside class="notes"><div class="paragraph"><p>We&#8217;re going to use Circe.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>TODO: image with compilation times</p></div>
-<div class="paragraph"><p>TODO: image with benchmarks times</p></div>
-<aside class="notes"><div class="paragraph"><p>circeGenericAuto      14   4    46  16      s
+<aside class="notes"><div class="paragraph"><p>We&#8217;re going to use Circe.</p></div>
+<div class="paragraph"><p>Common knowledge says autoderivation is very slow, and when your build times grow, use semi-automatic derivation, automatic derivation cosidered harmful, etc.</p></div></aside></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/json-compilation-times-1.png" alt="Json Compilation Times" width="80%" height="80%"></div>
+<div class="paragraph small"><small>(less is better)</small></div>
+<aside class="notes"><div class="paragraph"><p>Probably the common knowledge about auto vs semi is outdated on Scala 2.13.</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">                     Scala 2   Scala 3  Units
+compilation of      cold hot  cold hot
+circeGenericAuto      14   4    46  16      s
 circeGenericSemi      12   3    10   1      s
 circeMagnoliaAuto     13   2    65  32      s
-circeMagnoliaSemi     12   7    12   2      s</p></div></aside></div></section></section>
-<section><section id="_to_delete"><h2>To delete</h2></section><section id="_exhibit_automatic"><h2>Exhibit A(utomatic)</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">final case class In1(int: Int) // e.g. { "int": 1 }
-final case class In2(i11: In1, i12: In1) // e.g. { "i11": { "int": 1 }, ... }
-final case class In3(i21: In2, i22: In2, i23: In2) // { e.g. "i21": { "i11": ..., ... }, ... }
-final case class In4(i31: In3, i32: In3, i33: In3, i34: In3) // etc
-final case class In5(i41: In4, i42: In4, i43: In4, i44: In4, i45: In4)
-final case class Out(i1:  In5, i2:  In5, i3:  In5, i4:  In5, i5:  In5, i6:  In5)</code></pre></div></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.Decoder.Result
-import io.circe.Json
-import io.circe.generic.auto.* // &lt;-- magic happens here
-import io.circe.syntax.*
-
-def roundTrip(out: Out): (Json, Result[Out]) = {
-  val json = out.asJson // implicit Encoder[Out]
-  val parsed = json.as[Out] // implicit Decoder[Out]
-  json -&gt; parsed
-}</code></pre></div></div></div></section><section><div class="slide-content"><div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
-circe-generic-auto/target/jvm-2.13/classes ...
-[success] Total time: 14 s, completed Sep 7, 2024, 9:37:00 PM</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
-circe-generic-auto/target/jvm-2.13/classes ...
-[success] Total time: 4 s, completed Sep 7, 2024, 9:37:00 PM</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
-circe-generic-auto/target/jvm-3/classes ...
-[success] Total time: 46 s, completed Sep 7, 2024, 9:37:00 PM</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
-circe-generic-auto/target/jvm-3/classes ...
-[success] Total time: 16 s, completed Sep 7, 2024, 9:37:00 PM</code></pre></div></div>
-<aside class="notes"><div class="ulist"><ul><li><p>cold, Scala 2</p></li><li><p>hot, Scala 2</p></li><li><p>cold, Scala 3</p></li><li><p>hot, Scala 3</p></li></ul></div>
-<div class="paragraph"><p>What tribal knowledge recommends in such situation? Semi-automatic derivation!</p></div></aside></div></section><section id="_semi_automatic" data-transition="slide-in none-out"><h2>Semi-automatic</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.{Decoder, Encoder, Json}
-import io.circe.generic.semiauto.* // &lt;-- utilities come from here
-import io.circe.syntax.*
-
-// compilation error - missing implicits for Decoder[In5], Encoder[In5]!!!
-implicit val outDecoder: Decoder[Out] = deriveDecoder
-implicit val outEncoder: Encoder[Out] = deriveEncoder
-def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
-  val json = out.asJson // implicit Encoder[Out]
-  val parsed = json.as[Out] // implicit Decoder[Out]
-  json -&gt; parsed
-}</code></pre></div></div>
-<aside class="notes"><div class="paragraph"><p><code>deriveEncoder</code>/<code>deriveDecoder</code> cannot use implicit <code>Encoder</code>/<code>Decoder</code> because it
-would cause circular dependencies, for that reason it is not recursive as well.</p></div></aside></div></section><section id="_semi_automatic_2" data-transition="none"><h2>Semi-automatic</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.{Decoder, Encoder, Json}
-import io.circe.generic.semiauto.* // &lt;-- utilities come from here
-import io.circe.syntax.*
-
-// compilation error - missing implicits for Decoder[In4], Encoder[In4]!!!
-implicit val in5Decoder: Decoder[In5] = deriveDecoder
-implicit val in5Encoder: Encoder[In5] = deriveEncoder
-implicit val outDecoder: Decoder[Out] = deriveDecoder
-implicit val outEncoder: Encoder[Out] = deriveEncoder
-def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
-  val json = out.asJson // implicit Encoder[Out]
-  val parsed = json.as[Out] // implicit Decoder[Out]
-  json -&gt; parsed
-}</code></pre></div></div></div></section><section id="_semi_automatic_3" data-transition="none"><h2>Semi-automatic</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.{Decoder, Encoder, Json}
-import io.circe.generic.semiauto.* // &lt;-- utilities come from here
-import io.circe.syntax.*
-
-// compilation error -  missing implicits for Decoder[In3], Encoder[In3]!!!
-implicit val in4Decoder: Decoder[In4] = deriveDecoder
-implicit val in4Encoder: Encoder[In4] = deriveEncoder
-implicit val in5Decoder: Decoder[In5] = deriveDecoder
-implicit val in5Encoder: Encoder[In5] = deriveEncoder
-implicit val outDecoder: Decoder[Out] = deriveDecoder
-implicit val outEncoder: Encoder[Out] = deriveEncoder
-def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
-  val json = out.asJson // implicit Encoder[Out]
-  val parsed = json.as[Out] // implicit Decoder[Out]
-  json -&gt; parsed
-}</code></pre></div></div></div></section><section id="_semi_automatic_4" data-transition="none"><h2>Semi-automatic</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.{Decoder, Encoder, Json}
-import io.circe.generic.semiauto.* // &lt;-- utilities come from here
-import io.circe.syntax.*
-
-// compilation error - missing implicits for Decoder[In2], Encoder[In2]!!!
-implicit val in3Decoder: Decoder[In3] = deriveDecoder
-implicit val in3Encoder: Encoder[In3] = deriveEncoder
-implicit val in4Decoder: Decoder[In4] = deriveDecoder
-implicit val in4Encoder: Encoder[In4] = deriveEncoder
-implicit val in5Decoder: Decoder[In5] = deriveDecoder
-implicit val in5Encoder: Encoder[In5] = deriveEncoder
-implicit val outDecoder: Decoder[Out] = deriveDecoder
-implicit val outEncoder: Encoder[Out] = deriveEncoder
-def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
-  val json = out.asJson // implicit Encoder[Out]
-  val parsed = json.as[Out] // implicit Decoder[Out]
-  json -&gt; parsed
-}</code></pre></div></div></div></section><section id="_semi_automatic_5" data-transition="none"><h2>Semi-automatic</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.{Decoder, Encoder, Json}
-import io.circe.generic.semiauto.* // &lt;-- utilities come from here
-import io.circe.syntax.*
-
-// compilation error - missing implicits for Decoder[In1], Encoder[In1]!!!
-implicit val in2Decoder: Decoder[In2] = deriveDecoder
-implicit val in2Encoder: Encoder[In2] = deriveEncoder
-implicit val in3Decoder: Decoder[In3] = deriveDecoder
-implicit val in3Encoder: Encoder[In3] = deriveEncoder
-implicit val in4Decoder: Decoder[In4] = deriveDecoder
-implicit val in4Encoder: Encoder[In4] = deriveEncoder
-implicit val in5Decoder: Decoder[In5] = deriveDecoder
-implicit val in5Encoder: Encoder[In5] = deriveEncoder
-implicit val outDecoder: Decoder[Out] = deriveDecoder
-implicit val outEncoder: Encoder[Out] = deriveEncoder
-def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
-  val json = out.asJson // implicit Encoder[Out]
-  val parsed = json.as[Out] // implicit Decoder[Out]
-  json -&gt; parsed
-}</code></pre></div></div></div></section><section id="_semi_automatic_6" data-transition="none-in slide-out"><h2>Semi-automatic</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.{Decoder, Encoder, Json}
-import io.circe.generic.semiauto.* // &lt;-- utilities come from here
-import io.circe.syntax.*
-
-implicit val in1Decoder: Decoder[In1] = deriveDecoder
-implicit val in1Encoder: Encoder[In1] = deriveEncoder
-implicit val in2Decoder: Decoder[In2] = deriveDecoder
-implicit val in2Encoder: Encoder[In2] = deriveEncoder
-implicit val in3Decoder: Decoder[In3] = deriveDecoder
-implicit val in3Encoder: Encoder[In3] = deriveEncoder
-implicit val in4Decoder: Decoder[In4] = deriveDecoder
-implicit val in4Encoder: Encoder[In4] = deriveEncoder
-implicit val in5Decoder: Decoder[In5] = deriveDecoder
-implicit val in5Encoder: Encoder[In5] = deriveEncoder
-implicit val outDecoder: Decoder[Out] = deriveDecoder
-implicit val outEncoder: Encoder[Out] = deriveEncoder
-def roundTrip(out: Out): (Json, Decoder.Result[Out]) = {
-  val json = out.asJson // implicit Encoder[Out]
-  val parsed = json.as[Out] // implicit Decoder[Out]
-  json -&gt; parsed
-}</code></pre></div></div>
-<aside class="notes"><div class="paragraph"><p>The UX is horrible, but how about the compilation time?</p></div></aside></div></section><section><div class="slide-content"><div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
-circe-generic-semi/target/jvm-2.13/classes ...
-[success] Total time: 12 s, completed Sep 7, 2024, 9:37:00 PM</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
-circe-generic-semi/target/jvm-2.13/classes ...
-[success] Total time: 3 s, completed Sep 7, 2024, 9:37:00 PM</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
-circe-generic-semi/target/jvm-3/classes ...
-[success] Total time: 10 s, completed Sep 7, 2024, 9:37:00 PM</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
-circe-generic-semi/target/jvm-3/classes ...
-[success] Total time: 1 s, completed Sep 7, 2024, 9:37:00 PM</code></pre></div></div>
-<aside class="notes"><div class="ulist"><ul><li><p>cold Scala 2 was 14</p></li><li><p>hot Scala 2 was 4</p></li><li><p>cold Scala 3 was 46</p></li><li><p>hot Scala 3 was 16</p></li></ul></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>Why is that?</p></div></div></section></section>
-<section><section id="_generic_programming"><h2>Generic programming</h2></section><section id="_mirrors"><h2>Mirrors</h2><div class="slide-content"><div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">sealed trait Mirror {
-  type MirroredMonoType /** The mirrored type */
-  type MirroredLabel &lt;: String /** The name of the type */
-  type MirroredElemLabels &lt;: Tuple /** The names of the product elements */
-}
-object Mirror {
-  trait Product extends Mirror {
-    /** Create a new instance of type `T` with elements taken from product `p`. */
-    def fromProduct(p: scala.Product): MirroredMonoType
-  }
-  type ProductOf[T] = Product { type MirroredType = T;
-                                type MirroredMonoType = T;
-                                type MirroredElemTypes &lt;: Tuple }
-}</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class Foo(a: Int, b: String, c: Double)</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">object Foo extends Mirror.Product {
-  type MirroredType = Foo
-  type MirroredMonoType = Foo
-  type MirroredLabel = "Foo"
-  type MirroredElemLabels = ("a", "b", "c")
-  type MirroredElemTypes = (Int, String, Double)
-  def fromProduct(p: scala.Product): Foo
-}
-// summon[Mirror.ProductOf[Foo]] == Foo.type</code></pre></div></div></div></section><section><div class="slide-content"><div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">trait FastShowPretty[A] {
-
-  def showPretty(
-    value:   A,
-    sb:      StringBuilder,
-    indent:  String = "  ",
-    nesting: Int = 0
-  ): StringBuilder
-}</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">inline def deriveProduct[A](implicit p: Mirror.ProductOf[A]): FastShowPretty[A] =
-  new FastShowPretty[A] {
-    private val name: String = valueOf[p.MirroredLabel]
-    private val meta: Array[(String, FastShowPretty[Any])] = {
-      val labels =
-        summonAll[Tuple.Map[p.MirroredElemLabels, ValueOf]].toList
-          .asInstanceOf[List[ValueOf[String]]].map(_.value)
-      val instances =
-        summonAll[Tuple.Map[p.MirroredElemTypes, FastShowPretty]].toList
-          .asInstanceOf[List[FastShowPretty[Any]]]
-      labels.zip(instances).toArray
-    }
-    private def fields(a: A): Seq[Any] = a.asInstanceOf[Product].productIterator
-
-    def showPretty(
-      value:   A,
-      sb:      StringBuilder,
-      indent:  String = "  ",
-      nesting: Int = 0
-    ): StringBuilder = ???
-  }</code></pre></div></div>
-<aside class="notes"><div class="paragraph"><p>Actual implementation is an excercise for the reader.</p></div></aside></div></section><section id="_shapeless"><h2>Shapeless</h2><div class="slide-content"><div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// no
-//   a *: b *: c *: EmptyTuple &lt;: Tuple
-// on Scala 3, so we had to implmenent it!
-sealed trait HList
-
-final case class ::[+H, +T &lt;: HList](head : H, tail : T) extends HList
-
-sealed trait HNil extends HList
-case object HNil extends HNil
-// a :: b :: c :: HNil       &lt;: HList on Scala 2 + Shapeless is like
-// a *: b *: c *: EmptyTuple &lt;: Tuple on Scala 3</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">trait Generic[T] {
-  type Repr
-  def to(t : T) : Repr
-  def from(r : Repr) : T
-}
-object Generic {
-  type Aux[T, Repr0] = Generic[T] { type Repr = Repr0 }
-}
-// there's also LabelledGeneric</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class Foo(a: Int, b: String, c: Double)
-Generic[Foo] // Generic[Foo] { type Repr = Int :: String :: Double :: HNil }
-LabelledGeneric[Foo] // LabelledGeneric[Foo] {
-// type Repr =
-//   FieldType['a, Int] :: FieldType['b, String] :: FieldType['c, Double] :: HNil
-// }</code></pre></div></div>
-<aside class="notes"><div class="paragraph"><p>On Scala 2 tuples didn&#8217;t behave like lists.</p></div></aside></div></section><section><div class="slide-content"><div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">implicit def showHList[A, ARepr &lt;: HList](implicit
-    gen: LabelledGeneric.Aux[A, ARepr],
-    classTag: ClassTag[A],
-    instance: FastShowPretty[ARepr]
-): FastShowPretty[A] = ???
-// e.g.
-// FastShowPretty[Foo]
-// -&gt;
-// showHList[Foo, FieldType['a,Int]::FieldType['b,String]::FieldType['c,Double]::HNil]</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">implicit def showHCons[HeadName &lt;: Symbol, Head, Tail &lt;: HList](implicit
-    name: Witness.Aux[HeadName], // &lt;-- singleton type before they were cool
-    head: Lazy[FastShowPretty[Head]], // &lt;-- yup, this laziness is needed
-    tail: FastShowPretty[Tail]
-): FastShowPretty[FieldType[HeadName, Head] :: Tail] = ???
-// e.g.
-// FastShowPretty[FieldType['a,Int]::FieldType['b,String]::FieldType['c,Double]::HNil]
-// -&gt;
-// showHCons['a, Int, FieldType['b, String] :: FieldType['c, Double] :: HNil]
-
-// FastShowPretty[FieldType['b, String] :: FieldType['c, Double] :: HNil]
-// -&gt;
-// showHCons['b, String, FieldType['c, Double] :: HNil]
-
-// FastShowPretty[FieldType['c, Double] :: HNil]
-// -&gt;
-// showHCons['c, Double, HNil]</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">implicit val showHNil: FastShowPretty[HNil] = ???
-// e.g.
-// FastShowPretty[HNil]
-// -&gt;
-// showHNil</code></pre></div></div></div></section><section id="_what_else_we_need_to_know_about_implicits"><h2>What else we need to know about implicits?</h2></section><section><div class="slide-content"><div class="paragraph"><p>The values that are accessible in the current scope (defined, inherited, imported) which are <code>implicit</code> (<code>given</code>), belong to the <code>implicit</code> scope:</p></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">implicit val defined: Foo = ...
-
-trait Parent {
-  implicit val inherited: Bar = ...
-}
-
-object Module {
-  implicit val imported: Baz = ...
-
-  given importedToo: Baz2 = ...
-}
-
-class Child extends Parent {
-  import Module.*
-  // defined, inherited, imported are seen here
-  import Module.given
-  // importedToo is seen as well
-}</code></pre></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>Implicits defined in the companion object of <strong>EVERY</strong> type that is a part of type of the <code>implicit</code> we&#8217;re summoning:</p></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">trait TypeClass[A]
-object TypeClass { /* implicits */ }
-
-case class Foo[A]()
-object Foo { /* implicits */ }
-
-object Bar { implicit val tc: TypeClass[Bar.type] = ??? }
-
-object Baz {
-  opaque type Nested = String
-  // implicits
-}
-
-type Alias = Bar.type
-object Alias { /* implicits */ }</code></pre></div></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">implicitly[TypeClass[Foo[Bar]]]
-// would look inside objects: TypeClass.type, Foo.type, Bar.type
-
-implicitly[TypeClass[Baz.Nested]]
-// would look inside objects: TypeClass.type, Baz.type!!
-
-implicitly[TypeClass[Alias]]
-// would NOT look inside Alias.type</code></pre></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>Implicits have priorities:</p></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">object Implicits {
-  implicit def allCollections[A, CC &lt;: Iterable[A]]: TypeClass[CC] = ???
-
-  implicit def specialCase[A]: TypeClass[List[A]] = ???
-}
-import Implicits.*
-implicitly[TypeClass[List[String]]] // ambiguity! 2 implicits match</code></pre></div></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">object Implicits extends LowPriorityImplicits {
-  implicit def specialCase[A]: TypeClass[List[A]] = ???
-}
-trait LowPriorityImplicits {
-  implicit def allCollections[A, CC &lt;: Iterable[A]]: TypeClass[CC] = ???
-}
-import Implicits.*
-implicitly[TypeClass[List[String]]] // no ambiguity, specialCase is selected</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">object CompanionObject extends LowPriorityImplicits0 { ... }
-trait LowPriorityImplicits0 extends LowPriorityImplicits1 { ... }
-trait LowPriorityImplicits1 extends LowPriorityImplicits2 { ... }
-...</code></pre></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>Compiler looks <strong>only at the signatures</strong>, so it can decide if it&#8217;s a match without running an <code>implicit def</code>. This <strong>includes</strong>
-<code>implicit</code> macros and <code>implicit</code> (<code>given</code>) <code>inline def</code> s.</p></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import scala.language.experimental.macros, scala.reflect.macros.blackbox
-
-trait TypeClass[A]
-
-object TypeClass extends TypeClassLowPriority0 {
-  implicit def useMacro: TypeClass[List[String]] = macro TypeClass.useMacroImpl
-
-  def useMacroImpl(c: blackbox.Context): c.Expr[TypeClass[List[String]]] =
-    c.abort(c.enclosingPosition, "lol nope")
-}
-trait TypeClassLowPriority0 {
-  implicit def noMacro[CC &lt;: Seq[String]]: TypeClass[CC] = new TypeClass[CC] {}
-}</code></pre></div></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">implicitly[TypeClass[Seq[String]]] // works
-implicitly[TypeClass[List[String]]] // compilation error: lol nope</code></pre></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>Unless it&#8217;s a whitebox macro/<code>transparent inline def</code>.</p></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import scala.language.experimental.macros, scala.reflect.macros.whitebox
-
-trait TypeClass[A]
-
-object TypeClass extends TypeClassLowPriority0 {
-
-  implicit def useMacro: TypeClass[List[String]] = macro TypeClass.useMacroImpl // &lt;- whitebox!
-
-  def useMacroImpl(c: whitebox.Context): c.Expr[TypeClass[List[String]]] =
-    c.abort(c.enclosingPosition, "lol nope")
-}
-trait TypeClassLowPriority0 {
-
-  implicit def noMacro[CC &lt;: Seq[String]]: TypeClass[CC] = new TypeClass[CC] {}
-}</code></pre></div></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">implicitly[TypeClass[Seq[String]]] // works
-implicitly[TypeClass[List[String]]] // also works!</code></pre></div></div></div></section><section id="_chain_of_derivations"><h2>Chain of derivations</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class A(b: B)
-case class B(c: C)
-case class C(int: Int)</code></pre></div></div>
-<div class="paragraph"><p>What happens when we summon <code>FastShowPretty[A]</code> with Shapeless?</p></div></div></section><section data-transition="slide-in none-out"><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">summon FastShowPretty[A]
-
-
-
-
-
-
-
-
-
-
-
-
-
-...</code></pre></div></div></div></section><section data-transition="none"><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">summon FastShowPretty[A]
-├ find all implicits in the scope and companions, sort by priorities, match 1-by-1
-├ get to FastShowPrettyAuto.showHList[A, ARepr]: FastShowPretty[A]
-└ is it done? we don't know yet, we have to summon LabelledGeneric.Aux[A, ARepr]
-
-
-
-
-
-
-
-
-
-
-...</code></pre></div></div>
-<aside class="notes"><div class="paragraph"><p><code>ARepr</code> has to be resolved yet.</p></div></aside></div></section><section data-transition="none"><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">summon FastShowPretty[A]
-├ find all implicits in the scope and companions, sort by priorities, match 1-by-1
-├ get to FastShowPrettyAuto.showHList[A, ARepr]: FastShowPretty[A]
-└ is it done? we don't know yet, we have to summon LabelledGeneric.Aux[A, ARepr]
-  ├ find all implicits in the scope...
-  ├ there is only one! LabelledGeneric.materialize!
-  ├ but it's a whitebox macro so we have to expand it to tell whether it works!
-  └ macro expanded! we resolved the ARepr to FieldType['b, B] :: HNil
-
-
-
-
-
-
-...</code></pre></div></div></div></section><section data-transition="none"><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">summon FastShowPretty[A]
-├ find all implicits in the scope and companions, sort by priorities, match 1-by-1
-├ get to FastShowPrettyAuto.showHList[A, ARepr]: FastShowPretty[A]
-├ is it done? we don't know yet, we have to summon LabelledGeneric.Aux[A, ARepr]
-│ ├ find all implicits in the scope...
-│ ├ there is only one! LabelledGeneric.materialize!
-│ ├ but it's a whitebox macro so we have to expand it to tell whether it works!
-│ └ macro expanded! we resolved the ARepr to FieldType['b, B] :: HNil
-└ is it done? nope, also need FastShowPretty[FieldType['b, B] :: HNil]!
-
-
-
-
-
-...</code></pre></div></div></div></section><section data-transition="none"><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">summon FastShowPretty[A]
-├ find all implicits in the scope and companions, sort by priorities, match 1-by-1
-├ get to FastShowPrettyAuto.showHList[A, ARepr]: FastShowPretty[A]
-├ is it done? we don't know yet, we have to summon LabelledGeneric.Aux[A, ARepr]
-│ ├ find all implicits in the scope...
-│ ├ there is only one! LabelledGeneric.materialize!
-│ ├ but it's a whitebox macro so we have to expand it to tell whether it works!
-│ └ macro expanded! we resolved the ARepr to FieldType['b, B] :: HNil
-└ is it done? nope, also need FastShowPretty[FieldType['b, B] :: HNil]!
-  ├ find all implicits in the scope...
-  ├ get to FastShowPrettyAuto.showHCons['b, B, HNil]
-  └ is it done? we don't know yet, we have to summon FastShowPretty[B]
-
-
-...</code></pre></div></div>
-<aside class="notes"><div class="paragraph"><p>I skipped summoning <code>Witness.Aux[B]</code>.</p></div></aside></div></section><section data-transition="none"><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">summon FastShowPretty[A]
-├ find all implicits in the scope and companions, sort by priorities, match 1-by-1
-├ get to FastShowPrettyAuto.showHList[A, ARepr]: FastShowPretty[A]
-├ is it done? we don't know yet, we have to summon LabelledGeneric.Aux[A, ARepr]
-│ ├ find all implicits in the scope...
-│ ├ there is only one! LabelledGeneric.materialize!
-│ ├ but it's a whitebox macro so we have to expand it to tell whether it works!
-│ └ macro expanded! we resolved the ARepr to FieldType['b, B] :: HNil
-└ is it done? nope, also need FastShowPretty[FieldType['b, B] :: HNil]!
-  ├ find all implicits in the scope...
-  ├ get to FastShowPrettyAuto.showHCons['b, B, HNil]
-  └ is it done? we don't know yet, we have to summon FastShowPretty[B]
-    ├ find all implicits in the scope and companions, sort by priorities, match 1-by-1
-    └ get to FastShowPrettyAuto.showHList[B, BRepr] : FastShowPretty[B]
-...</code></pre></div></div>
-<aside class="notes"><div class="paragraph"><p><code>BRepr</code> has to be resolved yet.</p></div></aside></div></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">summon FastShowPretty[A]
-└ FastShowPrettyAuto.showHList[A, ...]
-  ├ LabelledGeneric.materialize[A] &lt;- whitebox macro expansion!
-  └ FastShowPrettyAuto.showHCons['b, B, HNil]
-    ├ FastShowPrettyAuto.showHCons['b, B, HNil]
-    │ ├ FastShowPrettyAuto.showHList[B, ...]
-    │ │ ├ LabelledGeneric.materialize[B] &lt;- whitebox macro expansion!
-    │ │ └ FastShowPrettyAuto.showHCons['c, C, HNil]
-    │ │   ├ FastShowPrettyAuto.showHList[C, ...]
-    │ │   │ ├ LabelledGeneric.materialize[C] &lt;- whitebox macro expansion!
-    │ │   │ └ FastShowPrettyAuto.showHCons['c, C, HNil]
-    │ │   │   ├ FastShowPretty.showInt
-    │ │   │   └ FastShowPrettyAuto.showHNil
-    │ │   └ FastShowPrettyAuto.showHNil
-    │ └ FastShowPrettyAuto.showHNil
-    └ FastShowPrettyAuto.showHNil</code></pre></div></div>
-<aside class="notes"><div class="paragraph"><p>This is a happy path skipping <code>Witness.Aux</code> and all unmatched implicits.</p></div></aside></div></section><section id="_what_about_mirrors"><h2>What about mirrors?</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class A(b: B)
-case class B(c: C)
-case class C(int: Int)</code></pre></div></div>
-<div class="paragraph"><p>What happens when we summon <code>FastShowPretty[A]</code> with Mirrors?</p></div></div></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">summon FastShowPretty[A]
-└ FastShowPrettyAuto.FastShowPrettyAuto[A]
-  ├ summon Mirror.Of[A] - it's A companion object!
-  ├ summon Value["b"]
-  └ summon FastShowPretty[B]
-    └ FastShowPrettyAuto.FastShowPrettyAuto[B]
-      ├ summon Mirror.Of[B] - it's B companion object!
-      ├ summon Value["c"]
-      └ summon FastShowPretty[C]
-        └ FastShowPrettyAuto.FastShowPrettyAuto[C]
-            ├ summon Mirror.Of[A] - it's C companion object!
-            ├ Value["int"]
-            └ summon FastShowPretty[Int]
-              └ FastShowPretty.showInt</code></pre></div></div></div></section><section id="_why_is_scala_2_faster"><h2>Why is Scala 2 faster?</h2><div class="slide-content"><div class="ulist small"><ul><li class="fragment"><p><a href="https://github.com/scala/scala/pull/5649">PR #5649</a> - <em>Faster compilation of inductive implicits</em> (closed)</p></li><li class="fragment"><p><a href="https://github.com/scala/scala/pull/6481">PR #6481</a> - <em>Topic/inductive implicits 2.13.x</em> (closed)</p></li><li class="fragment"><p><a href="https://github.com/scala/scala/pull/6580">PR #6580</a> - <em>Prune polymorphic implicits more aggressively</em> (merged)</p></li><li class="fragment"><p><a href="https://github.com/scala/scala/pull/7012">PR #7012</a> - <em>Speed up implicit resolution by avoiding allocations when traversing TypeRefs in core</em> (merged)</p></li><li class="fragment"><p>and more</p></li></ul></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">              1) baseline - scalac 2.13.x     2) scalac 2.13.x with matchesPtInst
-  HList Size
-   50            4                              3
-  100            7                              3
-  150           15                              4
-  200           28                              4
-  250           48                              5
-  300           81                              6
-  350          126                              8
-  400          189                             11
-  450          322                             13
-  500          405                             16         Compile time in seconds</code></pre></div></div>
+circeMagnoliaSemi     12   7    12   2      s
+jsoniterScalaSanely    -   -     9   1      s
+jsoniterScalaSemi     10   4     8   1      s</code></pre></div></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>Scala 2.13.14</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] Benchmark                          Mode  Cnt   Score   Error   Units
+[info] JsonRoundTrips.circeGenericAuto    thrpt  10   7.319 ± 0.011  ops/ms
+[info] JsonRoundTrips.circeGenericSemi    thrpt  10   6.775 ± 0.013  ops/ms</code></pre></div></div>
+<div class="paragraph"><p>Scala 3.3.3</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] Benchmark                            Mode  Cnt   Score   Error   Units
+[info] JsonRoundTrips.circeGenericAuto     thrpt   10   0.490 ± 0.432  ops/ms
+[info] JsonRoundTrips.circeGenericSemi     thrpt   10   4.607 ± 0.014  ops/ms</code></pre></div></div>
+<div class="paragraph small"><small>(more is better)</small></div></div></section><section id="_auto_vs_semi_on_scala_2" class="small-h2"><h2>Auto vs Semi on Scala 2</h2><div class="slide-content"><div class="ulist small"><ul><li class="fragment"><p>PR #5649 - <em>Faster compilation of inductive implicits</em> (closed)</p></li><li class="fragment"><p>PR #6481 - <em>Topic/inductive implicits 2.13.x</em> (closed)</p></li><li class="fragment"><p>PR #6580 - <em>Prune polymorphic implicits more aggressively</em> (merged)</p></li><li class="fragment"><p>PR #7012 - <em>Speed up implicit resolution by avoiding allocations when traversing TypeRefs in core</em> (merged)</p></li><li class="fragment"><p>and more</p></li></ul></div>
+<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">             1) baseline - scalac 2.13.x  2) scalac 2.13.x with matchesPtInst
+ HList Size
+  50          4                            3
+ 100          7                            3
+ 150         15                            4
+ 200         28                            4
+ 250         48                            5
+ 300         81                            6
+ 350        126                            8
+ 400        189                           11
+ 450        322                           13
+ 500        405                           16         Compile time in seconds</code></pre></div></div>
 <aside class="notes"><div class="paragraph"><p>There was a series of Miles Sabin PRs improving performance of implicit resolution - 2 first PRs got closed but the third on got finally merged in 2.13-M5.</p></div>
-<div class="paragraph"><p>Some of that work was ported to Scala 3 but perhaps not everything yet.</p></div></aside></div></section><section id="_semi_automatic_derivation"><h2>Semi-automatic derivation</h2><div class="slide-content"><div class="ulist small"><ul><li class="fragment"><p>used for generating implicits:<br>
-<code>implicit val foo: TC[Foo] = deriveTC[Foo]</code></p></li><li class="fragment"><p>should NOT create circular dependencies:<br>
-<code>implicit val foo: Foo = implicitly[Foo] // foo</code></p></li><li class="fragment"><p>when implemented with implicits <strong>summons a different type</strong> that it returns</p></li></ul></div></div></section><section><div class="slide-content"><div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">abstract class DerivedDecoder[A] extends Decoder[A]
-object DerivedDecoder extends IncompleteDerivedDecoders {
-  implicit def deriveDecoder[A, R](implicit
-    gen: LabelledGeneric.Aux[A, R],
-    decode: Lazy[ReprDecoder[R]]
-  ): DerivedDecoder[A] = ...
-}
-
-final def deriveDecoder[A](implicit decode: Lazy[DerivedDecoder[A]]): Decoder[A] = decode.value</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">object FastShowPrettySemiauto {
-  case class DerivedFastShowPretty[A](instance: FastShowPretty[A]) extends AnyVal
-
-  implicit def showHList[A, ARepr &lt;: HList](implicit
-        gen: LabelledGeneric.Aux[A, ARepr],
-        classTag: ClassTag[A],
-        instance: DerivedFastShowPretty[ARepr]
-    ): DerivedFastShowPretty[A] = ...
-
-  implicit def showHCons[HeadName &lt;: Symbol, Head, Tail &lt;: HList](implicit
-      name: Witness.Aux[HeadName],
-      head: Lazy[FastShowPretty[Head]],
-      tail: DerivedFastShowPretty[Tail]
-  ): DerivedFastShowPretty[FieldType[HeadName, Head] :: Tail] = ...
-
-  implicit val showHNil: DerivedFastShowPretty[HNil] = ...
-}
-
-def deriveShow[A](implicit derived: DerivedFastShowPretty[A]): FastShowPretty[A] = derived.instance</code></pre></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>Usually, semi-automatic derivation, on its own, does&#8217;t handle recursive derivation.</p></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.generic.semiauto.*
-
-implicit val in1Decoder: Decoder[In1] = deriveDecoder
-implicit val in2Decoder: Decoder[In2] = deriveDecoder
-implicit val in3Decoder: Decoder[In3] = deriveDecoder
-implicit val in4Decoder: Decoder[In4] = deriveDecoder
-implicit val in5Decoder: Decoder[In5] = deriveDecoder
-implicit val outDecoder: Decoder[Out] = deriveDecoder</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import io.circe.generic.semiauto.*
-
-implicit val outDecoder: Decoder[Out] = {
-  import io.circe.generic.auto.*
-  deriveDecoder
-}</code></pre></div></div></div></section></section>
-<section><section id="_magnolia_to_the_rescue"><h2>Magnolia to the rescue(?)</h2></section><section><div class="slide-content"><div class="paragraph"><p>Let&#8217;s change</p></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">final case class In1(int: Int)
-final case class In2(i11: In1, i12: In1)
-final case class In3(i21: In2, i22: In2, i23: In2)
-final case class In4(i31: In3, i32: In3, i33: In3, i34: In3)
-final case class In5(i41: In4, i42: In4, i43: In4, i44: In4, i45: In4)
-final case class Out(i1:  In5, i2:  In5, i3:  In5, i4:  In5, i5:  In5, i6:  In5)</code></pre></div></div>
-<div class="paragraph"><p>into</p></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">class NewType private (val value: Int) extends AnyVal
-object NewType {
-  def unsafe(value: Int): NewType = new NewType(value)
-}
-final class In1(int: NewType) // &lt;-- no Endocer/Decoder for NewType
-final case class In2(i11: In1, i12: In1)
-final case class In3(i21: In2, i22: In2, i23: In2)
-final case class In4(i31: In3, i32: In3, i33: In3, i34: In3)
-final case class In5(i41: In4, i42: In4, i43: In4, i44: In4, i45: In4)
-final case class Out(i1:  In5, i2:  In5, i3:  In5, i4:  In5, i5:  In5, i6:  In5)</code></pre></div></div></div></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">sbt:root&gt; circeGenericAuto/compile
-[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
-circe-generic-auto/target/jvm-2.13/classes ...
-[error] /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-auto/src/
-main/scala/example/CirceGenericAuto.scala:12:20:
-could not find implicit value for parameter encoder: io.circe.Encoder[example.model1.Out]
-[error]     val json = out.asJson
-[error]                    ^
-[error] one error found
-[error] (circeGenericAuto / Compile / compileIncremental) Compilation failed
-[error] Total time: 6 s, completed Sep 20, 2024, 10:47:08 AM
-sbt:root&gt;</code></pre></div></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
-circe-generic-auto/target/jvm-3/classes ...
-[error] -- Error: /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-auto/
-src/main/scala/example/CirceGenericAuto.scala:12:25
-[error] 12 |    val json = out.asJson
-[error]    |                         ^
-[error]    |               Failed to find an instance of Encoder[example.model1.In5]
-[error] -- Error: /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-auto/
-src/main/scala/example/CirceGenericAuto.scala:13:29
-[error] 13 |    val parsed = json.as[Out]
-[error]    |                             ^
-[error]    |               Failed to find an instance of Decoder[example.model1.In5]
-[error] two errors found
-[error] (circeGenericAuto3 / Compile / compileIncremental) Compilation failed
-[error] Total time: 4 s, completed Sep 20, 2024, 10:51:11 AM
-sbt:root&gt;</code></pre></div></div></div></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">sbt:root&gt; circeGenericSemi/run
-[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
-test-classes/target/jvm-2.13/classes ...
-[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
-circe-generic-semi/target/jvm-2.13/classes ...
-[error] /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/src/main/
-scala/example/CirceGenericSemi.scala:11:51:
-could not find Lazy implicit value of type io.circe.generic.decoding.DerivedDecoder[example.model1.In1]
-[error]   implicit private val in1Decoder: Decoder[In1] = deriveDecoder
-[error]                                                   ^
-[error] /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/src/main/
-scala/example/CirceGenericSemi.scala:12:51:
-could not find Lazy implicit value of type io.circe.generic.encoding.DerivedAsObjectEncoder[example.model1.In1]
-[error]   implicit private val in1Encoder: Encoder[In1] = deriveEncoder
-[error]                                                   ^
-[error] two errors found
-[error] (circeGenericSemi / Compile / compileIncremental) Compilation failed
-[error] Total time: 9 s, completed Sep 20, 2024, 10:54:02 AM
-sbt:root&gt;</code></pre></div></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">sbt:root&gt; circeGenericSemi3/run
-[info] compiling 1 Scala source to /Users/dev/Workspaces/GitHub/derivation-benchmarks/
-circe-generic-semi/target/jvm-3/classes ...
-[error] -- Error: /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/
-src/main/scala/example/CirceGenericSemi.scala:11:50
-[error]  11 |  implicit private val in1Decoder: Decoder[In1] = deriveDecoder
-[error]     |                                                  ^^^^^^^^^^^^^
-[error]     |cannot reduce summonFrom with
-[error]     | patterns :  case given decodeA @ _:io.circe.Decoder[example.model1.NewType]
-[error]     |             case given m @ _:scala.deriving.Mirror.Of[example.model1.NewType]
-[error]     |---------------------------------------------------------------------------
-[error]     |Inline stack trace
-[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[error]     |This location contains code that was inlined from package.scala:67
-[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[error]     |This location contains code that was inlined from package.scala:67
-[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[error]     |This location contains code that was inlined from package.scala:67
-[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[error]     |This location contains code that was inlined from package.scala:67
-[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[error]     |This location contains code that was inlined from package.scala:67
-[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[error]     |This location contains code that was inlined from package.scala:67
-[error]      ---------------------------------------------------------------------------
-[error] -- Error: /Users/dev/Workspaces/GitHub/derivation-benchmarks/circe-generic-semi/
-src/main/scala/example/CirceGenericSemi.scala:12:50
-[error]  12 |  implicit private val in1Encoder: Encoder[In1] = deriveEncoder
-[error]     |                                                  ^^^^^^^^^^^^^
-[error]     |cannot reduce summonFrom with
-[error]     | patterns :  case given encodeA @ _:io.circe.Encoder[example.model1.NewType]
-[error]     |             case given m @ _:scala.deriving.Mirror.Of[example.model1.NewType]
-[error]     |---------------------------------------------------------------------------
-[error]     |Inline stack trace
-[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[error]     |This location contains code that was inlined from package.scala:44
-[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[error]     |This location contains code that was inlined from package.scala:44
-[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[error]     |This location contains code that was inlined from package.scala:44
-[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[error]     |This location contains code that was inlined from package.scala:44
-[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[error]     |This location contains code that was inlined from package.scala:44
-[error]     |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[error]     |This location contains code that was inlined from package.scala:44
-[error]      ---------------------------------------------------------------------------
-[error] two errors found
-[error] (circeGenericSemi3 / Compile / compileIncremental) Compilation failed
-[error] Total time: 3 s, completed Sep 20, 2024, 10:53:18 AM</code></pre></div></div></div></section></section>
-<section id="_what_if_semi_was_recursive_ootb"><h2>What if semi was recursive OOTB?</h2><div class="slide-content"><div class="paragraph"><p>TODO: show auto/semi and then jsoniter</p></div>
-<div class="paragraph"><p>TODO: differences in philosphy</p></div>
-<div class="paragraph"><p>TODO: benchmarks</p></div>
-<div class="paragraph"><p>TODO: can it be made automatic?</p></div>
-<div class="paragraph"><p>TODO: speakers notes about recursion NOT involving nested instances</p></div></div></section>
-<section id="_could_jsoniter_be_automatic"><h2>Could Jsoniter be automatic?</h2></section>
-<section id="_more_fair_comparisons"><h2>More fair comparisons</h2><div class="slide-content"><div class="paragraph"><p>TODO show</p></div></div></section>
-<section id="_no_rose_without_a_thorn"><h2>No rose without a thorn</h2><div class="slide-content"><div class="paragraph"><p>TODO trzeba summonować TC.AD</p></div>
-<div class="paragraph"><p>TODO problemy z derived na S3</p></div>
-<div class="paragraph"><p>TODO: these are macros after all</p></div></div></section>
-<section id="_are_macros_so_bad"><h2>Are macros so bad?</h2><div class="slide-content"><div class="paragraph"><p>TODO: poleconka</p></div>
-<div class="paragraph"><p>TODO: refactor</p></div>
-<div class="paragraph"><p>TODO: come back</p></div></div></section>
+<div class="paragraph"><p>Some of that work was ported to Scala 3 but perhaps not everything yet.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>Could something else improve performance?</p></div></div></section></section>
+<section><section id="_magnolia"><h2>Magnolia</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>alternative to Shapeless/Mirrors</p></li><li class="fragment"><p>boasts about:</p><div class="ulist"><ul><li><p>better API</p></li><li><p>better performance</p></li><li><p>better compilation times</p></li><li><p>better error messages when derivation fail</p></li></ul></div></li></ul></div></div></section><section id="_error_messages"><h2>Error messages</h2><div class="slide-content"><div class="paragraph"><p>TODO semi w shapeless</p></div>
+<div class="paragraph"><p>TODO semi w magnolii</p></div>
+<div class="paragraph"><p>TODO auto</p></div>
+<aside class="notes"><div class="paragraph"><p>We implemented out own simplified Circe-Magnolia on Scala 2 and 3.</p></div></aside></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/json-compilation-times-2.png" alt="Json Compilation Times" width="80%" height="80%"></div>
+<div class="paragraph small"><small>(less is better)</small></div>
+<aside class="notes"><div class="paragraph"><p>Probably the common knowledge about Magnolia&#8217;s compile times on Scala 2 is outdated on Scala 3.</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">                     Scala 2   Scala 3  Units
+compilation of      cold hot  cold hot
+circeGenericAuto      14   4    46  16      s
+circeGenericSemi      12   3    10   1      s
+circeMagnoliaAuto     13   2    65  32      s
+circeMagnoliaSemi     12   7    12   2      s
+jsoniterScalaSanely    -   -     9   1      s
+jsoniterScalaSemi     10   4     8   1      s</code></pre></div></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>Scala 2.13.14</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] Benchmark                          Mode  Cnt   Score   Error   Units
+[info] JsonRoundTrips.circeGenericAuto    thrpt  10   7.319 ± 0.011  ops/ms
+[info] JsonRoundTrips.circeGenericSemi    thrpt  10   6.775 ± 0.013  ops/ms
+[info] JsonRoundTrips.circeMagnoliaAuto   thrpt  10   7.689 ± 0.013  ops/ms
+[info] JsonRoundTrips.circeMagnoliaSemi   thrpt  10   7.838 ± 0.013  ops/ms</code></pre></div></div>
+<div class="paragraph"><p>Scala 3.3.3</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] Benchmark                            Mode  Cnt   Score   Error   Units
+[info] JsonRoundTrips.circeGenericAuto     thrpt   10   0.490 ± 0.432  ops/ms
+[info] JsonRoundTrips.circeGenericSemi     thrpt   10   4.607 ± 0.014  ops/ms
+[info] JsonRoundTrips.circeMagnoliaAuto    thrpt   10   0.077 ± 0.039  ops/ms
+[info] JsonRoundTrips.circeMagnoliaSemi    thrpt   10   5.590 ± 0.013  ops/ms</code></pre></div></div>
+<div class="paragraph small"><small>(more is better)</small></div>
+<aside class="notes"><div class="paragraph"><p>Magnolia on Scala 3 was implemented on top of Mirrors.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>Shapeless/Mirrors/Magnolia - different APIs, same approach.</p></div>
+<div class="paragraph"><p>Did anyone tries something else?</p></div></div></section></section>
+<section><section id="_jsoniter_scala"><h2>Jsoniter Scala</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>prioritizes performance</p></li><li class="fragment"><p>no automatic derivation</p></li><li class="fragment"><p>no need to derive intermediate instances</p></li></ul></div><div class="paragraph fragment"><p>How?</p></div></div></section><section><div class="slide-content"><div class="paragraph"><p>TODO: code example</p></div></div></section><section id="_recursive_semi_automatic_derivation" class="small-h2"><h2>Recursive semi-automatic derivation</h2><div class="slide-content"><div class="imageblock"><img src="img/recursive-macro-derivation.png" alt="Recursive Macro Derivation"></div></div></section><section id="_recursive_semi_automatic_derivation_2" class="small-h2 columns"><h2>Recursive semi-automatic derivation</h2><div class="slide-content"><div class="openblock column"><div class="content"><div class="imageblock"><img src="img/derivation.png" alt="Derivation"></div>
+<div class="ulist small"><ul><li><p>delegates everything to implicit search</p></li><li><p>types supported OOTB are handled via implicits in companion object</p></li></ul></div></div></div>
+<div class="openblock column"><div class="content"><div class="imageblock"><img src="img/recursive-macro-derivation.png" alt="Recursive Macro Derivation"></div>
+<div class="ulist small"><ul><li><p>use implicit search only for overrides</p></li><li><p>types supported OOTB are handled by macro, implicit scope is empty by default</p></li></ul></div></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>OK, but what does this gibberish mean for users?</p></div></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/json-compilation-times-3.png" alt="Json Compilation Times" width="80%" height="80%"></div>
+<div class="paragraph small"><small>(less is better)</small></div>
+<aside class="notes"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">                     Scala 2   Scala 3  Units
+compilation of      cold hot  cold hot
+circeGenericAuto      14   4    46  16      s
+circeGenericSemi      12   3    10   1      s
+circeMagnoliaAuto     13   2    65  32      s
+circeMagnoliaSemi     12   7    12   2      s
+jsoniterScalaSanely    -   -     9   1      s
+jsoniterScalaSemi     10   4     8   1      s</code></pre></div></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>Scala 2.13.14</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] Benchmark                          Mode  Cnt   Score   Error   Units
+[info] JsonRoundTrips.circeGenericAuto    thrpt  10   7.319 ± 0.011  ops/ms
+[info] JsonRoundTrips.circeGenericSemi    thrpt  10   6.775 ± 0.013  ops/ms
+[info] JsonRoundTrips.circeMagnoliaAuto   thrpt  10   7.689 ± 0.013  ops/ms
+[info] JsonRoundTrips.circeMagnoliaSemi   thrpt  10   7.838 ± 0.013  ops/ms
+[info] JsonRoundTrips.jsoniterScalaSemi   thrpt  10  20.081 ± 0.151  ops/ms</code></pre></div></div>
+<div class="paragraph"><p>Scala 3.3.3</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] Benchmark                            Mode  Cnt   Score   Error   Units
+[info] JsonRoundTrips.circeGenericAuto     thrpt   10   0.490 ± 0.432  ops/ms
+[info] JsonRoundTrips.circeGenericSemi     thrpt   10   4.607 ± 0.014  ops/ms
+[info] JsonRoundTrips.circeMagnoliaAuto    thrpt   10   0.077 ± 0.039  ops/ms
+[info] JsonRoundTrips.circeMagnoliaSemi    thrpt   10   5.590 ± 0.013  ops/ms
+[info] JsonRoundTrips.jsoniterScalaSemi    thrpt   10  21.480 ± 0.070  ops/ms</code></pre></div></div>
+<div class="paragraph small"><small>(more is better)</small></div>
+<aside class="notes"><div class="paragraph"><p>I have to admit: I am cheating, Jsoniter parses and writes to String while, Circe parses and writes to Json AST.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>But can it be automatic?</p></div></div></section></section>
+<section id="_automatic_derivation_ala_chimney"><h2>Automatic derivation a&#8217;la Chimney</h2><div class="slide-content"><div class="paragraph"><p>TODO</p></div></div></section>
 <section id="_summary"><h2>Summary</h2></section>
 <section id="_thank_you"><h2>Thank you!</h2><div class="slide-content"><div class="imageblock"><img src="img/qr-code.png" alt="Link to examples" width="40%" height="40%"></div>
 <div class="paragraph"><p><a href="https://github.com/MateuszKubuszok/derivation-benchmarks" class="bare">https://github.com/MateuszKubuszok/derivation-benchmarks</a></p></div></div></section></div></div><script src="./reveal.js/dist/reveal.js"></script><script>Array.prototype.slice.call(document.querySelectorAll('.slides section')).forEach(function(slide) {
