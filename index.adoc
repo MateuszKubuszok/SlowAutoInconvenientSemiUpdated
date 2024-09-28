@@ -112,6 +112,9 @@ method asJson in object ...
 
 image::img/derivation.png[Derivation,100%,100%]
 
+[.small]
+(If you don't understand this diagram, you probably haven't spend 600h on a topic that most sane people avoid. The main reason we have these images is because people like colorful images on slides.)
+
 [NOTE.speaker]
 --
 * for some types implementations are some build-in
@@ -272,7 +275,7 @@ image::img/3-hours-later.jpg[3h later,80%,80%]
 We're not going to question that use case.
 --
 
-=== 2. Speed
+=== 2. "Speed"
 
 === !
 
@@ -398,17 +401,84 @@ Could something else improve performance?
    - better compilation times
    - better error messages when derivation fail
 
+[.small]
 === Error messages
 
-TODO semi w shapeless
+Semi-automatic derivation
 
-TODO semi w magnolii
+[source,scala]
+--
+case class Street(name: Either[String, Nothing]) // <-- should not be able to derive name
+case class Address(street: Street)
+case class User(name: String, address: Address)
+--
 
-TODO auto
+[source,scala]
+--
+implicit val streetEncoder: Encoder[Street] = deriveEncoder
+implicit val addressEncoder: Encoder[Address] = deriveEncoder
+implicit val userEncoder: Encoder[User] = deriveEncoder
+
+user.asJson
+--
+
+Shapeless' errors
+
+[source,scala]
+--
+could not find Lazy implicit value of type DerivedAsObjectEncoder[Street]
+   implicit val streetEncoder: Encoder[Street] = deriveEncoder
+                                                 ^
+--
+
+Mirrors' errors
+
+[source,scala]
+--
+  implicit val streetEncoder: Encoder[Street] = deriveEncoder
+                                                ^^^^^^^^^^^^^
+Failed to find an instance of Encoder[Either[String, Nothing]]
+--
+
+Magnolia's errors
+
+[source,scala]
+--
+magnolia: could not find Encoder.Typeclass for type Either[String,Nothing]
+     in parameter 'name' of product type Street
+   implicit val streetEncoder: Encoder[Street] = EncoderSemi.derived
+                                                             ^
+--
 
 [NOTE.speaker]
 --
 We implemented out own simplified Circe-Magnolia on Scala 2 and 3.
+--
+
+=== !
+
+Automatic derivation
+
+[source,scala]
+--
+case class Street(name: Either[String, Nothing])
+case class Address(street: Street)
+case class User(name: String, address: Address)
+
+def roundTrip(user: User): (Json, Result[User]) = {
+  val json = user.asJson
+  val parsed = json.as[User]
+  json -> parsed
+}
+--
+
+Shapeless/Mirrors/Magnolia
+
+[source,scala]
+--
+could not find implicit value for parameter encoder: Encoder[User]
+     val json = user.asJson
+                     ^
 --
 
 === !
@@ -583,8 +653,8 @@ But can it be automatic?
 
 Similar problem:
 
-* macro should only use implicits for overrides
 * derivation should be recursive
+* macro should only use implicits for overrides
 
 But:
 
@@ -717,9 +787,47 @@ Can we have some more *fair* comparison?
 
 === !
 
-FastShowPretty code
+[source,scala]
+--
+trait FastShowPretty[A] {
 
-and example
+  def showPretty(
+    value:   A,
+    sb:      StringBuilder,
+    indent:  String = "  ",
+    nesting: Int = 0
+  ): StringBuilder
+}
+
+implicit class FastShowPrettyOps[A](private val value: A) {
+
+  def showPretty(indent: String = "  ", nesting: Int = 0)(
+    implicit fsp: FastShowPretty[A]
+  ): String =
+    fsp.showPretty(value, new StringBuilder, indent, nesting).toString()
+}
+--
+
+[source,scala]
+--
+case class Street(name: String)
+case class Address(street: Street)
+case class User(name: String, address: Address)
+
+println(User("John", Address(Street("Paper St"))).showPretty())
+--
+
+[source,scala]
+--
+User(
+  name = "John",
+  address = Address(
+    street = Street(
+      name = "Paper St"
+    )
+  )
+)
+--
 
 === !
 
@@ -841,11 +949,98 @@ Scala 3.3.3
 [info] ShowOutputs.showSanely                  thrpt   10  4.800 ± 0.042  ops/ms
 --
 
+[.small]
 === Bonus: debugging
 
-TODO: show compilation errors
+[source,scala]
+--
+case class Street(name: Either[String, Nothing])
+case class Address(street: Street)
+case class User(name: String, address: Address)
 
-TODO: show logs from macro
+// scalacOptions += "-Xmacro-settings:fastshowpretty.logging=true"
+def printObject(out: User): String = out.showPretty()
+--
+
+[source,scala]
+--
+[info] .../ShowSanely.scala:12:54: Logs:
+[info]  - Started derivation for value : example.ShowSanely.User
+[info]  - Attempting rule ImplicitRule
+[info]  - Skipped summoning example.showmacros.FastShowPretty[example.ShowSanely.User]
+[info]  - Attempting rule CachedDefRule
+[info]  - Attempting rule BuildInRule
+[info]  - Attempting rule ProductRule
+[info]  - Checking if def for example.ShowSanely.User exists
+[info]  - Started deriving def for example.ShowSanely.User
+[info]    - Started derivation for string : java.lang.String
+[info]    - Attempting rule ImplicitRule
+[info]    - Attempting rule CachedDefRule
+[info]    - Attempting rule BuildInRule
+[info]    - Successfully shown java.lang.String: sb.append("\"").append(string).append("\"")
+[info]    - Started derivation for address : example.ShowSanely.Address
+[info]    - Attempting rule ImplicitRule
+[info]    - Attempting rule CachedDefRule
+[info]    - Attempting rule BuildInRule
+[info]    - Attempting rule ProductRule
+[info]    - Checking if def for example.ShowSanely.Address exists
+[info]    - Started deriving def for example.ShowSanely.Address
+[info]      - Started derivation for street : example.ShowSanely.Street
+[info]      - Attempting rule ImplicitRule
+[info]      - Attempting rule CachedDefRule
+[info]      - Attempting rule BuildInRule
+[info]      - Attempting rule ProductRule
+[info]      - Checking if def for example.ShowSanely.Street exists
+[info]      - Started deriving def for example.ShowSanely.Street
+[info]        - Started derivation for either : scala.util.Either[java.lang.String, scala.Nothing]
+[info]        - Attempting rule ImplicitRule
+[info]        - Attempting rule CachedDefRule
+[info]        - Attempting rule BuildInRule
+[info]        - Attempting rule ProductRule
+[info]        - Attempting rule SumTypeRule
+[info]        - Checking if def for scala.util.Either[java.lang.String, scala.Nothing] exists
+[info]        - Started deriving def for scala.util.Either[java.lang.String, scala.Nothing]
+[info]          - Started derivation for left : scala.util.Left[java.lang.String, scala.Nothing]
+[info]          - Attempting rule ImplicitRule
+[info]          - Attempting rule CachedDefRule
+[info]          - Attempting rule BuildInRule
+[info]          - Attempting rule ProductRule
+[info]          - Checking if def for scala.util.Left[java.lang.String, scala.Nothing] exists
+[info]          - Started deriving def for scala.util.Left[java.lang.String, scala.Nothing]
+[info]            - Started derivation for string : java.lang.String
+[info]            - Attempting rule ImplicitRule
+[info]            - Attempting rule CachedDefRule
+[info]            - Attempting rule BuildInRule
+[info]            - Successfully shown java.lang.String: sb.append("\"").append(string).append("\"")
+[info]          - Cached result of def for scala.util.Left[java.lang.String, scala.Nothing]
+[info]          - Successfully shown scala.util.Left[java.lang.String, scala.Nothing]: show_nothing$u005D(left, nesting)
+[info]          - Started derivation for right : scala.util.Right[java.lang.String, scala.Nothing]
+[info]          - Attempting rule ImplicitRule
+[info]          - Attempting rule CachedDefRule
+[info]          - Attempting rule BuildInRule
+[info]          - Attempting rule ProductRule
+[info]          - Checking if def for scala.util.Right[java.lang.String, scala.Nothing] exists
+[info]          - Started deriving def for scala.util.Right[java.lang.String, scala.Nothing]
+[info]            - Started derivation for nothing : scala.Nothing
+[info]            - Attempting rule ImplicitRule
+[info]            - Attempting rule CachedDefRule
+[info]            - Attempting rule BuildInRule
+[info]          - Cached result of def for scala.util.Right[java.lang.String, scala.Nothing]
+[info]        - Cached result of def for scala.util.Either[java.lang.String, scala.Nothing]
+[info]      - Cached result of def for example.ShowSanely.Street
+[info]    - Cached result of def for example.ShowSanely.Address
+[info]  - Cached result of def for example.ShowSanely.User
+[info]   def printObject(out: User): String = out.showPretty()
+[info]                                                      ^
+--
+
+[source,scala]
+--
+[error] .../ShowSanely.scala:12:54: Failed to derive showing for value : example.ShowSanely.User:
+[error] No build-in support nor implicit for type scala.Nothing
+[error]   def printObject(out: User): String = out.showPretty()
+[error]                                                      ^
+--
 
 == Summary
 

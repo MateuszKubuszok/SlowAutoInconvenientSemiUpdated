@@ -443,7 +443,7 @@ User("John Smith", Address("Paper St. 19")).asJson // ???</code></pre></div></di
 method asJson in object ...
 No given instance of type Encoder[User] was found for parameter encoder of
 method asJson in object ...</code></pre></div></div></div></section></section>
-<section><section id="_type_class_derivation"><h2>Type class derivation</h2><div class="slide-content"><div class="imageblock"><img src="img/derivation.png" alt="Derivation" width="100%" height="100%"></div><aside class="notes"><div class="ulist"><ul><li><p>for some types implementations are some build-in</p></li><li><p>someone provided a way of combining implementations for each field
+<section><section id="_type_class_derivation"><h2>Type class derivation</h2><div class="slide-content"><div class="imageblock"><img src="img/derivation.png" alt="Derivation" width="100%" height="100%"></div><div class="paragraph small"><small>(If you don&#8217;t understand this diagram, you probably haven&#8217;t spend 600h on a topic that most sane people avoid. The main reason we have these images is because people like colorful images on slides.)</small></div><aside class="notes"><div class="ulist"><ul><li><p>for some types implementations are some build-in</p></li><li><p>someone provided a way of combining implementations for each field
 into an implementation for a whole <code>case class</code></p></li><li><p>someone provided a way of combining implementations for each subtype
 into an implementation for a whole <code>sealed</code> type</p></li><li><p>someone is usually the library&#8217;s author</p></li></ul></div></aside></div></section><section id="_derivation_ala_circe"><h2>Derivation a&#8217;la Circe</h2></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">trait Encoder[A] {
   def apply(a: A): Json // &lt;-- JSON as data
@@ -477,7 +477,7 @@ User("John Smith", Address("Paper St. 19")).asJson // using userEncoder</code></
 <section><section id="_ok_but_where_is_the_code"><h2>OK, but where is the code?</h2><div class="slide-content"><div class="paragraph"><p>Wouldn&#8217;t it be easier to understand with some examples?</p></div></div></section><section id="_1_we_are_focusing_on_user_side_of_the_derivation_story"><h2>1. We are focusing on user-side of the derivation story</h2></section><section id="_2_code_is_in_the_link"><h2>2. Code is in the link</h2><div class="slide-content"><div class="imageblock"><img src="img/qr-code.png" alt="Link to examples" width="40%" height="40%"></div>
 <div class="paragraph"><p><a href="https://github.com/MateuszKubuszok/derivation-benchmarks" class="bare">https://github.com/MateuszKubuszok/derivation-benchmarks</a></p></div></div></section><section id="_3_if_you_really_need_the_derivation_internals_explanation_experience" class="small-h2"><h2>3. If you really need the derivation-internals-explanation-experience</h2><div class="slide-content"><div class="imageblock fragment"><img src="img/3-hours-later.jpg" alt="3h later" width="80%" height="80%"></div>
 <aside class="notes"><div class="paragraph"><p>&#8230;&#8203;imagine it&#8217;s 3h later, you saw a lot of code examples and you understand at best as much as you do now.</p></div></aside></div></section></section>
-<section><section id="_why_people_bother_with_semi_automatic_derivation"><h2>Why people bother with semi-automatic derivation?</h2></section><section id="_1_they_want_to_make_sure_that_they_use_the_same_implementation_everywhere"><h2>1. They want to make sure that they use the same implementation everywhere</h2><div class="slide-content"><aside class="notes"><div class="paragraph"><p>We&#8217;re not going to question that use case.</p></div></aside></div></section><section id="_2_speed"><h2>2. Speed</h2></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// We're use Circe:
+<section><section id="_why_people_bother_with_semi_automatic_derivation"><h2>Why people bother with semi-automatic derivation?</h2></section><section id="_1_they_want_to_make_sure_that_they_use_the_same_implementation_everywhere"><h2>1. They want to make sure that they use the same implementation everywhere</h2><div class="slide-content"><aside class="notes"><div class="paragraph"><p>We&#8217;re not going to question that use case.</p></div></aside></div></section><section id="_2_speed"><h2>2. "Speed"</h2></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// We're use Circe:
 // trait Encoder[A] { ... } turns A -&gt; Json
 // trait Decoder[A] { ... } turns Json -&gt; Either[Decoder.DecodingError, A]
 
@@ -524,10 +524,42 @@ jsoniterScalaSemi     10   4     8   1      s</code></pre></div></div></aside></
  500        405                           16         Compile time in seconds</code></pre></div></div>
 <aside class="notes"><div class="paragraph"><p>There was a series of Miles Sabin PRs improving performance of implicit resolution - 2 first PRs got closed but the third on got finally merged in 2.13-M5.</p></div>
 <div class="paragraph"><p>Some of that work was ported to Scala 3 but perhaps not everything yet.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>Could something else improve performance?</p></div></div></section></section>
-<section><section id="_magnolia"><h2>Magnolia</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>alternative to Shapeless/Mirrors</p></li><li class="fragment"><p>boasts about:</p><div class="ulist"><ul><li><p>better API</p></li><li><p>better performance</p></li><li><p>better compilation times</p></li><li><p>better error messages when derivation fail</p></li></ul></div></li></ul></div></div></section><section id="_error_messages"><h2>Error messages</h2><div class="slide-content"><div class="paragraph"><p>TODO semi w shapeless</p></div>
-<div class="paragraph"><p>TODO semi w magnolii</p></div>
-<div class="paragraph"><p>TODO auto</p></div>
-<aside class="notes"><div class="paragraph"><p>We implemented out own simplified Circe-Magnolia on Scala 2 and 3.</p></div></aside></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/json-compilation-times-2.png" alt="Json Compilation Times" width="80%" height="80%"></div>
+<section><section id="_magnolia"><h2>Magnolia</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>alternative to Shapeless/Mirrors</p></li><li class="fragment"><p>boasts about:</p><div class="ulist"><ul><li><p>better API</p></li><li><p>better performance</p></li><li><p>better compilation times</p></li><li><p>better error messages when derivation fail</p></li></ul></div></li></ul></div></div></section><section id="_error_messages" class="small"><h2>Error messages</h2><div class="slide-content"><div class="paragraph"><p>Semi-automatic derivation</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class Street(name: Either[String, Nothing]) // &lt;-- should not be able to derive name
+case class Address(street: Street)
+case class User(name: String, address: Address)</code></pre></div></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">implicit val streetEncoder: Encoder[Street] = deriveEncoder
+implicit val addressEncoder: Encoder[Address] = deriveEncoder
+implicit val userEncoder: Encoder[User] = deriveEncoder
+
+user.asJson</code></pre></div></div>
+<div class="paragraph"><p>Shapeless' errors</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">could not find Lazy implicit value of type DerivedAsObjectEncoder[Street]
+   implicit val streetEncoder: Encoder[Street] = deriveEncoder
+                                                 ^</code></pre></div></div>
+<div class="paragraph"><p>Mirrors' errors</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">  implicit val streetEncoder: Encoder[Street] = deriveEncoder
+                                                ^^^^^^^^^^^^^
+Failed to find an instance of Encoder[Either[String, Nothing]]</code></pre></div></div>
+<div class="paragraph"><p>Magnolia&#8217;s errors</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">magnolia: could not find Encoder.Typeclass for type Either[String,Nothing]
+     in parameter 'name' of product type Street
+   implicit val streetEncoder: Encoder[Street] = EncoderSemi.derived
+                                                             ^</code></pre></div></div>
+<aside class="notes"><div class="paragraph"><p>We implemented out own simplified Circe-Magnolia on Scala 2 and 3.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>Automatic derivation</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class Street(name: Either[String, Nothing])
+case class Address(street: Street)
+case class User(name: String, address: Address)
+
+def roundTrip(user: User): (Json, Result[User]) = {
+  val json = user.asJson
+  val parsed = json.as[User]
+  json -&gt; parsed
+}</code></pre></div></div>
+<div class="paragraph"><p>Shapeless/Mirrors/Magnolia</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">could not find implicit value for parameter encoder: Encoder[User]
+     val json = user.asJson
+                     ^</code></pre></div></div></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/json-compilation-times-2.png" alt="Json Compilation Times" width="80%" height="80%"></div>
 <div class="paragraph small"><small>(less is better)</small></div>
 <aside class="notes"><div class="paragraph"><p>Probably the common knowledge about Magnolia&#8217;s compile times on Scala 2 is outdated on Scala 3.</p></div>
 <div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">                     Scala 2   Scala 3  Units
@@ -580,7 +612,7 @@ jsoniterScalaSemi     10   4     8   1      s</code></pre></div></div></aside></
 [info] JsonRoundTrips.jsoniterScalaSemi    thrpt   10  21.480 ± 0.070  ops/ms</code></pre></div></div>
 <div class="paragraph small"><small>(more is better)</small></div>
 <aside class="notes"><div class="paragraph"><p>I have to admit: I am cheating, Jsoniter parses and writes to String while, Circe parses and writes to Json AST.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>But can it be automatic?</p></div></div></section></section>
-<section><section id="_automatic_derivation_ala_chimney" class="small"><h2>Automatic derivation a&#8217;la Chimney</h2><div class="slide-content"><div class="paragraph"><p>Similar problem:</p></div><div class="ulist"><ul><li><p>macro should only use implicits for overrides</p></li><li><p>derivation should be recursive</p></li></ul></div><div class="paragraph"><p>But:</p></div><div class="ulist"><ul><li><p>automatic derivation should be available without breaking the 2 above</p></li></ul></div></div></section><section id="_solution" class="small-h2"><h2>Solution</h2><div class="slide-content"><div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">trait TypeClass[A] extends TypeClass.AutoDerived[A] { ... }
+<section><section id="_automatic_derivation_ala_chimney" class="small"><h2>Automatic derivation a&#8217;la Chimney</h2><div class="slide-content"><div class="paragraph"><p>Similar problem:</p></div><div class="ulist"><ul><li><p>derivation should be recursive</p></li><li><p>macro should only use implicits for overrides</p></li></ul></div><div class="paragraph"><p>But:</p></div><div class="ulist"><ul><li><p>automatic derivation should be available without breaking the 2 above</p></li></ul></div></div></section><section id="_solution" class="small-h2"><h2>Solution</h2><div class="slide-content"><div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">trait TypeClass[A] extends TypeClass.AutoDerived[A] { ... }
 object TypeClass {
 
   // semi-automatic derivation of TypeClass[A]
@@ -629,8 +661,36 @@ jsoniterScalaSemi     10   4     8   1      s</code></pre></div></div></aside></
 [info] JsonRoundTrips.jsoniterScalaSanely  thrpt   10  21.408 ± 0.070  ops/ms</code></pre></div></div>
 <div class="paragraph small"><small>(more is better)</small></div></div></section><section><div class="slide-content"><div class="paragraph"><p>But <strong>Jsoniter parsing <code>String</code> s</strong> vs <strong>Circe parsing <code>Json</code></strong> might be apples vs oranges.</p></div>
 <div class="paragraph"><p>Can we have some more <strong>fair</strong> comparison?</p></div></div></section></section>
-<section><section id="_more_fair_comparison"><h2>More fair comparison</h2></section><section><div class="slide-content"><div class="paragraph"><p>FastShowPretty code</p></div>
-<div class="paragraph"><p>and example</p></div></div></section><section><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>automatic and semi-automatic derivation using <strong>Shapeless</strong> (Scala 2)</p></li><li class="fragment"><p>automatic and semi-automatic derivation using <strong>Mirror</strong> s (Scala 3)</p></li><li class="fragment"><p>automatic and semi-automatic derivation using <strong>Magnolia</strong> (Scala 2 &amp; 3)</p></li><li class="fragment"><p>sanely-automatic derivation with macros and <strong>Chimney macro commons</strong> (Scala 2 &amp; 3)</p></li></ul></div>
+<section><section id="_more_fair_comparison"><h2>More fair comparison</h2></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">trait FastShowPretty[A] {
+
+  def showPretty(
+    value:   A,
+    sb:      StringBuilder,
+    indent:  String = "  ",
+    nesting: Int = 0
+  ): StringBuilder
+}
+
+implicit class FastShowPrettyOps[A](private val value: A) {
+
+  def showPretty(indent: String = "  ", nesting: Int = 0)(
+    implicit fsp: FastShowPretty[A]
+  ): String =
+    fsp.showPretty(value, new StringBuilder, indent, nesting).toString()
+}</code></pre></div></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class Street(name: String)
+case class Address(street: Street)
+case class User(name: String, address: Address)
+
+println(User("John", Address(Street("Paper St"))).showPretty())</code></pre></div></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">User(
+  name = "John",
+  address = Address(
+    street = Street(
+      name = "Paper St"
+    )
+  )
+)</code></pre></div></div></div></section><section><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>automatic and semi-automatic derivation using <strong>Shapeless</strong> (Scala 2)</p></li><li class="fragment"><p>automatic and semi-automatic derivation using <strong>Mirror</strong> s (Scala 3)</p></li><li class="fragment"><p>automatic and semi-automatic derivation using <strong>Magnolia</strong> (Scala 2 &amp; 3)</p></li><li class="fragment"><p>sanely-automatic derivation with macros and <strong>Chimney macro commons</strong> (Scala 2 &amp; 3)</p></li></ul></div>
 <aside class="notes"><div class="paragraph"><p>For startes I implemented sanely-automatic derivation in naive way - inlining everything.</p></div></aside></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/show-compilation-times-1.png" alt="Show Compilation Times" width="80%" height="80%"></div>
 <div class="paragraph small"><small>(less is better)</small></div>
 <aside class="notes"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">                            Scala 2   Scala 3  Units
@@ -675,8 +735,84 @@ showSanely                    6   1     7   1      s</code></pre></div></div></a
 [info] ShowOutputs.showGenericProgrammingSemi  thrpt   10  3.492 ± 0.013  ops/ms
 [info] ShowOutputs.showMagnoliaAuto            thrpt   10  0.090 ± 0.023  ops/ms
 [info] ShowOutputs.showMagnoliaSemi            thrpt   10  3.918 ± 0.012  ops/ms
-[info] ShowOutputs.showSanely                  thrpt   10  4.800 ± 0.042  ops/ms</code></pre></div></div></div></section><section id="_bonus_debugging"><h2>Bonus: debugging</h2><div class="slide-content"><div class="paragraph"><p>TODO: show compilation errors</p></div>
-<div class="paragraph"><p>TODO: show logs from macro</p></div></div></section></section>
+[info] ShowOutputs.showSanely                  thrpt   10  4.800 ± 0.042  ops/ms</code></pre></div></div></div></section><section id="_bonus_debugging" class="small"><h2>Bonus: debugging</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class Street(name: Either[String, Nothing])
+case class Address(street: Street)
+case class User(name: String, address: Address)
+
+// scalacOptions += "-Xmacro-settings:fastshowpretty.logging=true"
+def printObject(out: User): String = out.showPretty()</code></pre></div></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] .../ShowSanely.scala:12:54: Logs:
+[info]  - Started derivation for value : example.ShowSanely.User
+[info]  - Attempting rule ImplicitRule
+[info]  - Skipped summoning example.showmacros.FastShowPretty[example.ShowSanely.User]
+[info]  - Attempting rule CachedDefRule
+[info]  - Attempting rule BuildInRule
+[info]  - Attempting rule ProductRule
+[info]  - Checking if def for example.ShowSanely.User exists
+[info]  - Started deriving def for example.ShowSanely.User
+[info]    - Started derivation for string : java.lang.String
+[info]    - Attempting rule ImplicitRule
+[info]    - Attempting rule CachedDefRule
+[info]    - Attempting rule BuildInRule
+[info]    - Successfully shown java.lang.String: sb.append("\"").append(string).append("\"")
+[info]    - Started derivation for address : example.ShowSanely.Address
+[info]    - Attempting rule ImplicitRule
+[info]    - Attempting rule CachedDefRule
+[info]    - Attempting rule BuildInRule
+[info]    - Attempting rule ProductRule
+[info]    - Checking if def for example.ShowSanely.Address exists
+[info]    - Started deriving def for example.ShowSanely.Address
+[info]      - Started derivation for street : example.ShowSanely.Street
+[info]      - Attempting rule ImplicitRule
+[info]      - Attempting rule CachedDefRule
+[info]      - Attempting rule BuildInRule
+[info]      - Attempting rule ProductRule
+[info]      - Checking if def for example.ShowSanely.Street exists
+[info]      - Started deriving def for example.ShowSanely.Street
+[info]        - Started derivation for either : scala.util.Either[java.lang.String, scala.Nothing]
+[info]        - Attempting rule ImplicitRule
+[info]        - Attempting rule CachedDefRule
+[info]        - Attempting rule BuildInRule
+[info]        - Attempting rule ProductRule
+[info]        - Attempting rule SumTypeRule
+[info]        - Checking if def for scala.util.Either[java.lang.String, scala.Nothing] exists
+[info]        - Started deriving def for scala.util.Either[java.lang.String, scala.Nothing]
+[info]          - Started derivation for left : scala.util.Left[java.lang.String, scala.Nothing]
+[info]          - Attempting rule ImplicitRule
+[info]          - Attempting rule CachedDefRule
+[info]          - Attempting rule BuildInRule
+[info]          - Attempting rule ProductRule
+[info]          - Checking if def for scala.util.Left[java.lang.String, scala.Nothing] exists
+[info]          - Started deriving def for scala.util.Left[java.lang.String, scala.Nothing]
+[info]            - Started derivation for string : java.lang.String
+[info]            - Attempting rule ImplicitRule
+[info]            - Attempting rule CachedDefRule
+[info]            - Attempting rule BuildInRule
+[info]            - Successfully shown java.lang.String: sb.append("\"").append(string).append("\"")
+[info]          - Cached result of def for scala.util.Left[java.lang.String, scala.Nothing]
+[info]          - Successfully shown scala.util.Left[java.lang.String, scala.Nothing]: show_nothing$u005D(left, nesting)
+[info]          - Started derivation for right : scala.util.Right[java.lang.String, scala.Nothing]
+[info]          - Attempting rule ImplicitRule
+[info]          - Attempting rule CachedDefRule
+[info]          - Attempting rule BuildInRule
+[info]          - Attempting rule ProductRule
+[info]          - Checking if def for scala.util.Right[java.lang.String, scala.Nothing] exists
+[info]          - Started deriving def for scala.util.Right[java.lang.String, scala.Nothing]
+[info]            - Started derivation for nothing : scala.Nothing
+[info]            - Attempting rule ImplicitRule
+[info]            - Attempting rule CachedDefRule
+[info]            - Attempting rule BuildInRule
+[info]          - Cached result of def for scala.util.Right[java.lang.String, scala.Nothing]
+[info]        - Cached result of def for scala.util.Either[java.lang.String, scala.Nothing]
+[info]      - Cached result of def for example.ShowSanely.Street
+[info]    - Cached result of def for example.ShowSanely.Address
+[info]  - Cached result of def for example.ShowSanely.User
+[info]   def printObject(out: User): String = out.showPretty()
+[info]                                                      ^</code></pre></div></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[error] .../ShowSanely.scala:12:54: Failed to derive showing for value : example.ShowSanely.User:
+[error] No build-in support nor implicit for type scala.Nothing
+[error]   def printObject(out: User): String = out.showPretty()
+[error]                                                      ^</code></pre></div></div></div></section></section>
 <section id="_summary"><h2>Summary</h2></section>
 <section id="_thank_you"><h2>Thank you!</h2><div class="slide-content"><div class="imageblock"><img src="img/qr-code.png" alt="Link to examples" width="40%" height="40%"></div>
 <div class="paragraph"><p><a href="https://github.com/MateuszKubuszok/derivation-benchmarks" class="bare">https://github.com/MateuszKubuszok/derivation-benchmarks</a></p></div></div></section></div></div><script src="./reveal.js/dist/reveal.js"></script><script>Array.prototype.slice.call(document.querySelectorAll('.slides section')).forEach(function(slide) {
