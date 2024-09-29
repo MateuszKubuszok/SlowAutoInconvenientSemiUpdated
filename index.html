@@ -416,9 +416,9 @@ ul.byline li + li {
 </style><script>window.MathJax = {"tex":{"inlineMath":[["\\(", "\\)"]], "displayMath":[["\\[", "\\]"]], "processEscapes":false, "tags":"none"}, "options":{"ignoreHtmlClass":"nostem|nolatexmath"}, "asciimath":{"delimiters":[["\\$", "\\$"]]}, "loader":{"load":["input/asciimath", "output/chtml", "ui/menu"]}};</script><script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js"></script></head><body><div class="reveal"><div class="slides"><section class="title" data-state="title"><h1>Slow-Auto, Inconvenient-Semi</h1><div class="preamble"><div class="paragraph"><p><strong>escaping false dichotomy with sanely-automatic derivation</strong></p></div>
 <hr>
 <div class="paragraph"><p>Mateusz Kubuszok</p></div></div></section>
-<section id="_about_me"><h2>About me</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>breaking things in Scala for 9 years</p></li><li class="fragment"><p>a little bit of open source - including co-authoring Chimney for almost 7 years now</p></li><li class="fragment"><p>blog at <a href="https://kubuszok.com">Kubuszok.com</a></p></li><li class="fragment"><p>niche <a href="https://leanpub.com/jvm-scala-book">Things you need to know about JVM (that matter in Scala)</a> ebook</p></li></ul></div>
+<section id="_about_me"><h2>About me</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>breaking things in Scala for 9 years</p></li><li class="fragment"><p>a little bit of open source - including co-authoring Chimney for over 7 years now</p></li><li class="fragment"><p>blog at <a href="https://kubuszok.com">Kubuszok.com</a></p></li><li class="fragment"><p>niche <a href="https://leanpub.com/jvm-scala-book">Things you need to know about JVM (that matter in Scala)</a> ebook</p></li></ul></div>
 <aside class="notes"></aside></div></section>
-<section><section id="_agenda"><h2>Agenda</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>what is type class</p></li><li class="fragment"><p>what is type class derivation</p></li><li class="fragment"><p>automatic and semi-automatic derivation a&#8217;la Circe</p></li><li class="fragment"><p>semi-automatic derivation a&#8217;la Jsoniter</p></li><li class="fragment"><p>sanely-automatic derivation a&#8217;la Chimney</p></li><li class="fragment"><p>does it matter to library users how these approach differ</p></li></ul></div></div></section><section id="_examples"><h2>Examples</h2><div class="slide-content"><div class="imageblock"><img src="img/qr-code.png" alt="Link to examples" width="40%" height="40%"></div>
+<section><section id="_agenda"><h2>Agenda</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>what is a <strong>type class</strong></p></li><li class="fragment"><p>what is type class <strong>derivation</strong></p></li><li class="fragment"><p><strong>automatic</strong> and <strong>semi-automatic</strong> derivation a&#8217;la Circe</p></li><li class="fragment"><p>semi-automatic derivation a&#8217;la Jsoniter</p></li><li class="fragment"><p>sanely-automatic derivation a&#8217;la Chimney</p></li><li class="fragment"><p>does it matter to a <strong>library users</strong> how these approach differ</p></li></ul></div></div></section><section id="_examples"><h2>Examples</h2><div class="slide-content"><div class="imageblock"><img src="img/qr-code.png" alt="Link to examples" width="40%" height="40%"></div>
 <div class="paragraph"><p><a href="https://github.com/MateuszKubuszok/derivation-benchmarks" class="bare">https://github.com/MateuszKubuszok/derivation-benchmarks</a></p></div>
 <aside class="notes"><div class="paragraph"><p>We cannot afford to have a study each example in deep, since it could take a whole day, so as a homework or an excercise for the reader here&#8217;s the link.</p></div></aside></div></section></section>
 <section><section id="_type_class"><h2>Type class</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>interface</p></li><li class="fragment"><p>with type paremeters</p></li><li class="fragment"><p>whose implementation can be automatically provided based on their type only</p></li></ul></div></div></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">trait Encoder[A] {
@@ -434,7 +434,7 @@ object Encoder {
 }</code></pre></div></div>
 <div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">"value".asJson // using Encoder.encodeString
 1024.asJson // using Encoder.encodeInt
-3.13.asJson // using Encoder.encodeDouble</code></pre></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>What if nobody wrote the implementation explicitly for my type?</p></div>
+3.13.asJson // using Encoder.encodeDouble</code></pre></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>What if nobody wrote the implementation explicitly for <strong>my type</strong>?</p></div>
 <div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class Address(value: String)
 case class User(name: String, address: Address)</code></pre></div></div>
 <div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">Address("Paper St. 19").asJson // ???
@@ -472,10 +472,10 @@ User("John Smith", Address("Paper St. 19")).asJson // using userEncoder</code></
 <div class="imageblock"><img src="img/automatic-derivation-of-User.png" alt="Automatic Derivation of User" width="100%" height="100%"></div>
 <aside class="notes"><div class="paragraph"><p>For simplicity we&#8217;re ignoring the sealed scenario</p></div></aside></div></section><section id="_semi_automatic_derivation_of_user" class="small-h2"><h2>Semi-automatic derivation of User</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">implicitly[Encoder[User]] // &lt;-- creates new Encoder[User]</code></pre></div></div>
 <div class="imageblock"><img src="img/semi-automatic-derivation-of-User.png" alt="Semi-automatic Derivation of User" width="100%" height="100%"></div>
-<aside class="notes"><div class="paragraph"><p>For simplicity we&#8217;re ignoring the sealed scenario</p></div></aside>
-<div class="paragraph"><p>TODO: add example with lists of</p></div></div></section></section>
+<aside class="notes"><div class="paragraph"><p>For simplicity we&#8217;re ignoring the sealed scenario</p></div></aside></div></section></section>
 <section><section id="_ok_but_where_is_the_code"><h2>OK, but where is the code?</h2><div class="slide-content"><div class="paragraph"><p>Wouldn&#8217;t it be easier to understand with some examples?</p></div></div></section><section id="_1_we_are_focusing_on_user_side_of_the_derivation_story"><h2>1. We are focusing on user-side of the derivation story</h2></section><section id="_2_code_is_in_the_link"><h2>2. Code is in the link</h2><div class="slide-content"><div class="imageblock"><img src="img/qr-code.png" alt="Link to examples" width="40%" height="40%"></div>
-<div class="paragraph"><p><a href="https://github.com/MateuszKubuszok/derivation-benchmarks" class="bare">https://github.com/MateuszKubuszok/derivation-benchmarks</a></p></div></div></section><section id="_3_if_you_really_need_the_derivation_internals_explanation_experience" class="small-h2"><h2>3. If you really need the derivation-internals-explanation-experience</h2><div class="slide-content"><div class="imageblock fragment"><img src="img/3-hours-later.jpg" alt="3h later" width="80%" height="80%"></div>
+<div class="paragraph"><p><a href="https://github.com/MateuszKubuszok/derivation-benchmarks" class="bare">https://github.com/MateuszKubuszok/derivation-benchmarks</a></p></div></div></section><section id="_3_if_you_really_need_the_derivation_internals_explanation_experience" class="small-h2 columns"><h2>3. If you really need the derivation-internals-explanation-experience</h2><div class="slide-content"><div class="imageblock column fragment"><img src="img/3-hours-later.jpg" alt="3h later" width="80%" height="80%"></div>
+<div class="imageblock column fragment"><img src="img/everyday-we-stray-further-from-god.png" alt="3h later" width="80%" height="80%"></div>
 <aside class="notes"><div class="paragraph"><p>&#8230;&#8203;imagine it&#8217;s 3h later, you saw a lot of code examples and you understand at best as much as you do now.</p></div></aside></div></section></section>
 <section><section id="_why_people_bother_with_semi_automatic_derivation"><h2>Why people bother with semi-automatic derivation?</h2></section><section id="_1_they_want_to_make_sure_that_they_use_the_same_implementation_everywhere"><h2>1. They want to make sure that they use the same implementation everywhere</h2><div class="slide-content"><aside class="notes"><div class="paragraph"><p>We&#8217;re not going to question that use case.</p></div></aside></div></section><section id="_2_speed"><h2>2. "Speed"</h2></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// We're use Circe:
 // trait Encoder[A] { ... } turns A -&gt; Json
@@ -489,6 +489,20 @@ def roundTrip(out: Out): (Json, Either[Decoder.DecodingError, Out]) = {
   val parsed = json.as[Out] // &lt;-- decode from Json using  Decoder[Out]
   json -&gt; parsed
 }</code></pre></div></div>
+<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// Semi-automatic version will just have this:
+implicit val in1Decoder: Decoder[In1] = deriveDecoder
+implicit val in1Encoder: Encoder[In1] = deriveEncoder
+implicit val in2Decoder: Decoder[In2] = deriveDecoder
+implicit val in2Encoder: Encoder[In2] = deriveEncoder
+implicit val in3Decoder: Decoder[In3] = deriveDecoder
+implicit val in3Encoder: Encoder[In3] = deriveEncoder
+implicit val in4Decoder: Decoder[In4] = deriveDecoder
+implicit val in4Encoder: Encoder[In4] = deriveEncoder
+implicit val in5Decoder: Decoder[In5] = deriveDecoder
+implicit val in5Encoder: Encoder[In5] = deriveEncoder
+implicit val outDecoder: Decoder[Out] = deriveDecoder
+implicit val outEncoder: Encoder[Out] = deriveEncoder
+// instead of automatic derivation import.</code></pre></div></div>
 <div class="paragraph"><p>This shouldn&#8217;t be hard?</p></div>
 <aside class="notes"><div class="paragraph"><p>We&#8217;re going to use Circe.</p></div>
 <div class="paragraph"><p>Common knowledge says autoderivation is very slow, and when your build times grow, use semi-automatic derivation, automatic derivation cosidered harmful, etc.</p></div></aside></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/json-compilation-times-1.png" alt="Json Compilation Times" width="80%" height="80%"></div>
@@ -551,15 +565,11 @@ Failed to find an instance of Encoder[Either[String, Nothing]]</code></pre></div
 case class Address(street: Street)
 case class User(name: String, address: Address)
 
-def roundTrip(user: User): (Json, Result[User]) = {
-  val json = user.asJson
-  val parsed = json.as[User]
-  json -&gt; parsed
-}</code></pre></div></div>
+user.asJson</code></pre></div></div>
 <div class="paragraph"><p>Shapeless/Mirrors/Magnolia</p></div>
 <div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">could not find implicit value for parameter encoder: Encoder[User]
-     val json = user.asJson
-                     ^</code></pre></div></div></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/json-compilation-times-2.png" alt="Json Compilation Times" width="80%" height="80%"></div>
+     user.asJson
+          ^</code></pre></div></div></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/json-compilation-times-2.png" alt="Json Compilation Times" width="80%" height="80%"></div>
 <div class="paragraph small"><small>(less is better)</small></div>
 <aside class="notes"><div class="paragraph"><p>Probably the common knowledge about Magnolia&#8217;s compile times on Scala 2 is outdated on Scala 3.</p></div>
 <div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">                     Scala 2   Scala 3  Units
@@ -583,8 +593,16 @@ jsoniterScalaSemi     10   4     8   1      s</code></pre></div></div></aside></
 [info] JsonRoundTrips.circeMagnoliaSemi    thrpt   10   5.590 ± 0.013  ops/ms</code></pre></div></div>
 <div class="paragraph small"><small>(more is better)</small></div>
 <aside class="notes"><div class="paragraph"><p>Magnolia on Scala 3 was implemented on top of Mirrors.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>Shapeless/Mirrors/Magnolia - different APIs, same approach.</p></div>
-<div class="paragraph"><p>Did anyone tries something else?</p></div></div></section></section>
-<section><section id="_jsoniter_scala"><h2>Jsoniter Scala</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>prioritizes performance</p></li><li class="fragment"><p>no automatic derivation</p></li><li class="fragment"><p>no need to derive intermediate instances</p></li></ul></div><div class="paragraph fragment"><p>How?</p></div></div></section><section><div class="slide-content"><div class="paragraph"><p>TODO: code example</p></div></div></section><section id="_recursive_semi_automatic_derivation" class="small-h2"><h2>Recursive semi-automatic derivation</h2><div class="slide-content"><div class="imageblock"><img src="img/recursive-macro-derivation.png" alt="Recursive Macro Derivation"></div></div></section><section id="_recursive_semi_automatic_derivation_2" class="small-h2 columns"><h2>Recursive semi-automatic derivation</h2><div class="slide-content"><div class="openblock column"><div class="content"><div class="imageblock"><img src="img/derivation.png" alt="Derivation"></div>
+<div class="paragraph"><p>Did anyone try something else?</p></div></div></section></section>
+<section><section id="_jsoniter_scala"><h2>Jsoniter Scala</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>prioritizes <strong>performance</strong></p></li><li class="fragment"><p><strong>no automatic</strong> derivation</p></li><li class="fragment"><p><strong>no need</strong> to derive <strong>intermediate</strong> instances</p></li></ul></div><div class="paragraph fragment"><p>How?</p></div></div></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// Yes, only 1 codec, no need to manually derive implicits for nested cases
+implicit val outCodec: JsonValueCodec[Out] =
+  JsonCodecMaker.make(CodecMakerConfig.withAllowRecursiveTypes(true))
+
+def roundTrip(out: Out): (String, Either[Throwable, Out]) = {
+  val str = writeToString(out)
+  val parsed = scala.util.Try(readFromString(str)).toEither
+  str -&gt; parsed
+}</code></pre></div></div></div></section><section id="_recursive_semi_automatic_derivation" class="small-h2"><h2>Recursive semi-automatic derivation</h2><div class="slide-content"><div class="imageblock"><img src="img/recursive-macro-derivation.png" alt="Recursive Macro Derivation"></div></div></section><section id="_recursive_semi_automatic_derivation_2" class="small-h2 columns"><h2>Recursive semi-automatic derivation</h2><div class="slide-content"><div class="openblock column"><div class="content"><div class="imageblock"><img src="img/derivation.png" alt="Derivation"></div>
 <div class="ulist small"><ul><li><p>delegates everything to implicit search</p></li><li><p>types supported OOTB are handled via implicits in companion object</p></li></ul></div></div></div>
 <div class="openblock column"><div class="content"><div class="imageblock"><img src="img/recursive-macro-derivation.png" alt="Recursive Macro Derivation"></div>
 <div class="ulist small"><ul><li><p>use implicit search only for overrides</p></li><li><p>types supported OOTB are handled by macro, implicit scope is empty by default</p></li></ul></div></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>OK, but what does this gibberish mean for users?</p></div></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/json-compilation-times-3.png" alt="Json Compilation Times" width="80%" height="80%"></div>
@@ -612,7 +630,7 @@ jsoniterScalaSemi     10   4     8   1      s</code></pre></div></div></aside></
 [info] JsonRoundTrips.jsoniterScalaSemi    thrpt   10  21.480 ± 0.070  ops/ms</code></pre></div></div>
 <div class="paragraph small"><small>(more is better)</small></div>
 <aside class="notes"><div class="paragraph"><p>I have to admit: I am cheating, Jsoniter parses and writes to String while, Circe parses and writes to Json AST.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>But can it be automatic?</p></div></div></section></section>
-<section><section id="_automatic_derivation_ala_chimney" class="small"><h2>Automatic derivation a&#8217;la Chimney</h2><div class="slide-content"><div class="paragraph"><p>Similar problem:</p></div><div class="ulist"><ul><li><p>derivation should be recursive</p></li><li><p>macro should only use implicits for overrides</p></li></ul></div><div class="paragraph"><p>But:</p></div><div class="ulist"><ul><li><p>automatic derivation should be available without breaking the 2 above</p></li></ul></div></div></section><section id="_solution" class="small-h2"><h2>Solution</h2><div class="slide-content"><div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">trait TypeClass[A] extends TypeClass.AutoDerived[A] { ... }
+<section><section id="_automatic_derivation_ala_chimney" class="small"><h2>Automatic derivation a&#8217;la Chimney</h2><div class="slide-content"><div class="paragraph fragment"><p>Similar problem:</p></div><div class="ulist"><ul><li class="fragment"><p>derivation should be recursive</p></li><li class="fragment"><p>macro should only use implicits for overrides</p></li></ul></div><div class="paragraph fragment"><p>But:</p></div><div class="ulist"><ul><li class="fragment"><p>automatic derivation should be available without breaking the 2 above</p></li></ul></div></div></section><section id="_solution" class="small-h2"><h2>Solution</h2><div class="slide-content"><div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">trait TypeClass[A] extends TypeClass.AutoDerived[A] { ... }
 object TypeClass {
 
   // semi-automatic derivation of TypeClass[A]
@@ -635,7 +653,13 @@ object TypeClass {
 def derivedImpl[A: Type]: Expr[TypeClass[A]] = ...</code></pre></div></div>
 <div class="paragraph small fragment"><small>(Disclaimer: understanding this code is <strong>not</strong> necessary to understand its implications on the next slides)</small></div></div></section><section><div class="slide-content"><div class="paragraph"><p>Can we test it outside Chimney?</p></div>
 <div class="paragraph fragment"><p>Yes.</p></div></div></section><section id="_sanely_automatic_derivation" class="small-h2"><h2>Sanely-automatic derivation</h2><div class="slide-content"><div class="paragraph"><p>I implemented wrapper around Jsoniter (on Scala 3-only) which works like this:</p></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">TODO</code></pre></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>How does it compare to Circe or normal Jsoniter Scala?</p></div></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/json-compilation-times-4.png" alt="Json Compilation Times" width="80%" height="80%"></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import jsonitersanely.* // &lt;-- 1 import, like with std automatic derivation
+
+def roundTrip(out: Out): (String, Either[Throwable, Out]) = {
+  val str = write(out)
+  val parsed = scala.util.Try(read[Out](str)).toEither
+  str -&gt; parsed
+}</code></pre></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>How does it compare to Circe or normal Jsoniter Scala?</p></div></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/json-compilation-times-4.png" alt="Json Compilation Times" width="80%" height="80%"></div>
 <div class="paragraph small"><small>(less is better)</small></div>
 <aside class="notes"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">                     Scala 2   Scala 3  Units
 compilation of      cold hot  cold hot
@@ -735,13 +759,17 @@ showSanely                    6   1     7   1      s</code></pre></div></div></a
 [info] ShowOutputs.showGenericProgrammingSemi  thrpt   10  3.492 ± 0.013  ops/ms
 [info] ShowOutputs.showMagnoliaAuto            thrpt   10  0.090 ± 0.023  ops/ms
 [info] ShowOutputs.showMagnoliaSemi            thrpt   10  3.918 ± 0.012  ops/ms
-[info] ShowOutputs.showSanely                  thrpt   10  4.800 ± 0.042  ops/ms</code></pre></div></div></div></section><section id="_bonus_debugging" class="small"><h2>Bonus: debugging</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class Street(name: Either[String, Nothing])
+[info] ShowOutputs.showSanely                  thrpt   10  4.800 ± 0.042  ops/ms</code></pre></div></div></div></section><section id="_bonus_debugging" class="small"><h2>Bonus: debugging</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class Street(name: Either[String, Nothing]) // &lt;-- this should fail the derivation
 case class Address(street: Street)
 case class User(name: String, address: Address)
 
 // scalacOptions += "-Xmacro-settings:fastshowpretty.logging=true"
 def printObject(out: User): String = out.showPretty()</code></pre></div></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] .../ShowSanely.scala:12:54: Logs:
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[error] .../ShowSanely.scala:12:54: Failed to derive showing for value : example.ShowSanely.User:
+[error] No build-in support nor implicit for type scala.Nothing
+[error]   def printObject(out: User): String = out.showPretty()
+[error]                                                      ^</code></pre></div></div>
+<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] .../ShowSanely.scala:12:54: Logs:
 [info]  - Started derivation for value : example.ShowSanely.User
 [info]  - Attempting rule ImplicitRule
 [info]  - Skipped summoning example.showmacros.FastShowPretty[example.ShowSanely.User]
@@ -808,11 +836,7 @@ def printObject(out: User): String = out.showPretty()</code></pre></div></div>
 [info]    - Cached result of def for example.ShowSanely.Address
 [info]  - Cached result of def for example.ShowSanely.User
 [info]   def printObject(out: User): String = out.showPretty()
-[info]                                                      ^</code></pre></div></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[error] .../ShowSanely.scala:12:54: Failed to derive showing for value : example.ShowSanely.User:
-[error] No build-in support nor implicit for type scala.Nothing
-[error]   def printObject(out: User): String = out.showPretty()
-[error]                                                      ^</code></pre></div></div></div></section></section>
+[info]                                                      ^</code></pre></div></div></div></section></section>
 <section id="_summary"><h2>Summary</h2></section>
 <section id="_thank_you"><h2>Thank you!</h2><div class="slide-content"><div class="imageblock"><img src="img/qr-code.png" alt="Link to examples" width="40%" height="40%"></div>
 <div class="paragraph"><p><a href="https://github.com/MateuszKubuszok/derivation-benchmarks" class="bare">https://github.com/MateuszKubuszok/derivation-benchmarks</a></p></div></div></section></div></div><script src="./reveal.js/dist/reveal.js"></script><script>Array.prototype.slice.call(document.querySelectorAll('.slides section')).forEach(function(slide) {

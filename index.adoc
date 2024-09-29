@@ -15,7 +15,7 @@ Mateusz Kubuszok
 
 [%step]
 * breaking things in Scala for 9 years
-* a little bit of open source - including co-authoring Chimney for almost 7 years now
+* a little bit of open source - including co-authoring Chimney for over 7 years now
 * blog at https://kubuszok.com[Kubuszok.com]
 * niche https://leanpub.com/jvm-scala-book[Things you need to know about JVM (that matter in Scala)] ebook
 
@@ -26,12 +26,12 @@ Mateusz Kubuszok
 == Agenda
 
 [%step]
-* what is type class
-* what is type class derivation
-* automatic and semi-automatic derivation a'la Circe
+* what is a *type class*
+* what is type class *derivation*
+* *automatic* and *semi-automatic* derivation a'la Circe
 * semi-automatic derivation a'la Jsoniter
 * sanely-automatic derivation a'la Chimney
-* does it matter to library users how these approach differ
+* does it matter to a *library users* how these approach differ
 
 === Examples
 
@@ -83,7 +83,7 @@ extension [A](value: A) {
 
 === !
 
-What if nobody wrote the implementation explicitly for my type?
+What if nobody wrote the implementation explicitly for *my type*?
 
 [%step]
 [source, scala]
@@ -241,8 +241,6 @@ image::img/semi-automatic-derivation-of-User.png[Semi-automatic Derivation of Us
 For simplicity we're ignoring the sealed scenario
 --
 
-TODO: add example with lists of 
-
 == OK, but where is the code?
 
 Wouldn't it be easier to understand with some examples?
@@ -255,11 +253,16 @@ image::img/qr-code.png[Link to examples,40%,40%]
 
 https://github.com/MateuszKubuszok/derivation-benchmarks
 
-[.small-h2]
+[.small-h2.columns]
 === 3. If you really need the derivation-internals-explanation-experience
 
 [%step]
+[.column]
 image::img/3-hours-later.jpg[3h later,80%,80%]
+
+[%step]
+[.column]
+image::img/everyday-we-stray-further-from-god.png[3h later,80%,80%]
 
 [NOTE.speaker]
 --
@@ -293,6 +296,25 @@ def roundTrip(out: Out): (Json, Either[Decoder.DecodingError, Out]) = {
   val parsed = json.as[Out] // <-- decode from Json using  Decoder[Out]
   json -> parsed
 }
+--
+
+[%step]
+[source,scala]
+--
+// Semi-automatic version will just have this:
+implicit val in1Decoder: Decoder[In1] = deriveDecoder
+implicit val in1Encoder: Encoder[In1] = deriveEncoder
+implicit val in2Decoder: Decoder[In2] = deriveDecoder
+implicit val in2Encoder: Encoder[In2] = deriveEncoder
+implicit val in3Decoder: Decoder[In3] = deriveDecoder
+implicit val in3Encoder: Encoder[In3] = deriveEncoder
+implicit val in4Decoder: Decoder[In4] = deriveDecoder
+implicit val in4Encoder: Encoder[In4] = deriveEncoder
+implicit val in5Decoder: Decoder[In5] = deriveDecoder
+implicit val in5Encoder: Encoder[In5] = deriveEncoder
+implicit val outDecoder: Decoder[Out] = deriveDecoder
+implicit val outEncoder: Encoder[Out] = deriveEncoder
+// instead of automatic derivation import.
 --
 
 This shouldn't be hard?
@@ -465,11 +487,7 @@ case class Street(name: Either[String, Nothing])
 case class Address(street: Street)
 case class User(name: String, address: Address)
 
-def roundTrip(user: User): (Json, Result[User]) = {
-  val json = user.asJson
-  val parsed = json.as[User]
-  json -> parsed
-}
+user.asJson
 --
 
 Shapeless/Mirrors/Magnolia
@@ -477,8 +495,8 @@ Shapeless/Mirrors/Magnolia
 [source,scala]
 --
 could not find implicit value for parameter encoder: Encoder[User]
-     val json = user.asJson
-                     ^
+     user.asJson
+          ^
 --
 
 === !
@@ -541,21 +559,32 @@ Magnolia on Scala 3 was implemented on top of Mirrors.
 
 Shapeless/Mirrors/Magnolia - different APIs, same approach.
 
-Did anyone tries something else?
+Did anyone try something else?
 
 == Jsoniter Scala
 
 [%step]
-* prioritizes performance
-* no automatic derivation
-* no need to derive intermediate instances
+* prioritizes *performance*
+* *no automatic* derivation
+* *no need* to derive *intermediate* instances
 
 [%step]
 How?
 
 === !
 
-TODO: code example
+[source,scala]
+--
+// Yes, only 1 codec, no need to manually derive implicits for nested cases
+implicit val outCodec: JsonValueCodec[Out] =
+  JsonCodecMaker.make(CodecMakerConfig.withAllowRecursiveTypes(true))
+
+def roundTrip(out: Out): (String, Either[Throwable, Out]) = {
+  val str = writeToString(out)
+  val parsed = scala.util.Try(readFromString(str)).toEither
+  str -> parsed
+}
+--
 
 [.small-h2]
 === Recursive semi-automatic derivation
@@ -651,13 +680,17 @@ But can it be automatic?
 [.small]
 == Automatic derivation a'la Chimney
 
+[%step]
 Similar problem:
 
+[%step]
 * derivation should be recursive
 * macro should only use implicits for overrides
 
+[%step]
 But:
 
+[%step]
 * automatic derivation should be available without breaking the 2 above
 
 [.small-h2]
@@ -717,7 +750,13 @@ I implemented wrapper around Jsoniter (on Scala 3-only) which works like this:
 
 [source,scala]
 --
-TODO
+import jsonitersanely.* // <-- 1 import, like with std automatic derivation
+
+def roundTrip(out: Out): (String, Either[Throwable, Out]) = {
+  val str = write(out)
+  val parsed = scala.util.Try(read[Out](str)).toEither
+  str -> parsed
+}
 --
 
 === !
@@ -954,7 +993,7 @@ Scala 3.3.3
 
 [source,scala]
 --
-case class Street(name: Either[String, Nothing])
+case class Street(name: Either[String, Nothing]) // <-- this should fail the derivation
 case class Address(street: Street)
 case class User(name: String, address: Address)
 
@@ -962,6 +1001,16 @@ case class User(name: String, address: Address)
 def printObject(out: User): String = out.showPretty()
 --
 
+
+[source,scala]
+--
+[error] .../ShowSanely.scala:12:54: Failed to derive showing for value : example.ShowSanely.User:
+[error] No build-in support nor implicit for type scala.Nothing
+[error]   def printObject(out: User): String = out.showPretty()
+[error]                                                      ^
+--
+
+[%step]
 [source,scala]
 --
 [info] .../ShowSanely.scala:12:54: Logs:
@@ -1032,14 +1081,6 @@ def printObject(out: User): String = out.showPretty()
 [info]  - Cached result of def for example.ShowSanely.User
 [info]   def printObject(out: User): String = out.showPretty()
 [info]                                                      ^
---
-
-[source,scala]
---
-[error] .../ShowSanely.scala:12:54: Failed to derive showing for value : example.ShowSanely.User:
-[error] No build-in support nor implicit for type scala.Nothing
-[error]   def printObject(out: User): String = out.showPretty()
-[error]                                                      ^
 --
 
 == Summary
