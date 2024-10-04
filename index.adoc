@@ -378,12 +378,13 @@ Scala 3.3.3
 
 [.small]
 [%step]
-* PR #5649 - _Faster compilation of inductive implicits_ (closed)
-* PR #6481 - _Topic/inductive implicits 2.13.x_ (closed)
-* PR #6580 - _Prune polymorphic implicits more aggressively_ (merged)
-* PR #7012 - _Speed up implicit resolution by avoiding allocations when traversing TypeRefs in core_ (merged)
+* https://github.com/scala/scala/pull/5649[PR #5649] - _Faster compilation of inductive implicits_ (closed)
+* https://github.com/scala/scala/pull/6481[PR #6481] - _Topic/inductive implicits 2.13.x_ (closed)
+* https://github.com/scala/scala/pull/6580[PR #6580] - _Prune polymorphic implicits more aggressively_ (merged)
+* https://github.com/scala/scala/pull/7012[PR #7012] - _Speed up implicit resolution by avoiding allocations when traversing TypeRefs in core_ (merged)
 * and more
 
+[.small]
 [%step]
 [source, scala]
 --
@@ -735,6 +736,15 @@ def derivedImpl[A: Type]: Expr[TypeClass[A]] = ...
 [%step]
 [.small]
 (Disclaimer: understanding this code is *not* necessary to understand its implications on the next slides)
+
+[%step]
+[.small]
+(Solutions for https://www.scala-lang.org/2024/08/19/given-priority-change-3.7.html[_New Prioritization of Givens in Scala 3.7_] available at the checkout)
+
+[NOTE.speaker]
+--
+In case I forgot: `summonFrom` for ordering the summons the old way + `opaque type` for the result of such ordered summoning.
+--
 
 === !
 
