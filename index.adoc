@@ -11,6 +11,17 @@
 
 Mateusz Kubuszok
 
+[NOTE.speaker]
+--
+Most of you probably used some Scala library based on type class derivation.
+
+Most of you probably started with so-called automatic derivation, and at some point it bite you with long compilation times or hard to debuf errors.
+
+Some of you moved to moved to so-called semi-automatic derivation, which is much more clumsy, but tries to solve some of the issues with automatic derivation.
+
+In this presentation, I'll try to show that all of these issues are not some inherit cost of using type class derivation, but that we all did it wrong.
+--
+
 == About me
 
 [%step]
@@ -21,6 +32,13 @@ Mateusz Kubuszok
 
 [NOTE.speaker]
 --
+I've been working with Scala for over 9 years,
+
+and 7 of them I've been a maintainer of a library with rather complex metaprogramming.
+
+Additionally, I've been blogging, speaking at meetups and conferences like this one, and also wrote a book about Scala and JVM, so maybe I am not here by accident.
+
+But enough about me. Let's see today's game plan.
 --
 
 == Agenda
@@ -33,6 +51,23 @@ Mateusz Kubuszok
 * sanely-automatic derivation a'la Chimney
 * does it matter to a *library users* how these approach differ
 
+[NOTE.speaker]
+--
+We'll start with _briefly_ saying what is a type-class, since _some_ of you might not be familiar with the term.
+
+Then we explain what we mean by _type class derivation_, because it has nothing to do with integrals and calculus.
+
+Then we take a look at what people mean by automatic and semi-automatic derivation - in libraries which almost always followed Circe's approach.
+
+Then we show that not all libraries follow this approach, when it comes to semi-automatic derivation.
+
+And some libraries have some improvements also when it comes to automatic derivation.
+
+Hopefully, by the end of this talk, you will understand that how the library's author implement the whole mechanics, impacts you, the users.
+
+But I have to worn you, this is not Shapeless/Mirrors/Magnolia/or macros tutorial.
+--
+
 === Examples
 
 image::img/qr-code.png[Link to examples,40%,40%]
@@ -41,7 +76,14 @@ https://github.com/MateuszKubuszok/derivation-benchmarks
 
 [NOTE.speaker]
 --
-We cannot afford to have a study each example in deep, since it could take a whole day, so as a homework or an excercise for the reader here's the link.
+We will be talking how these design choices of library's authors affect you, the users.
+
+If you are curious about the code that generated the numbers or error messages, everything that we compare,
+you can take a look at this link, and investigate the code at your own pace.
+
+As an excercise for the reader.
+
+So let's start.
 --
 
 == Type class
@@ -50,6 +92,19 @@ We cannot afford to have a study each example in deep, since it could take a who
 * interface
 * with type paremeters
 * whose implementation can be automatically provided based on their type only
+
+[NOTE.speaker]
+--
+Type class, what it is?
+
+As far as I care it is an interface.
+
+But it's an interface with some type parameter.
+
+So that each implementation,that we'd use, could be distinguished only by type, and we could let the compiler pass it around for us.
+
+For example.
+--
 
 === !
 
@@ -81,6 +136,21 @@ extension [A](value: A) {
 3.13.asJson // using Encoder.encodeDouble
 --
 
+[NOTE.speaker]
+--
+We has some data type representing JSONs.
+
+We want to be able to encode our type, whatever it is, to JSON.
+
+For starters, we have implementation for the primitives.
+
+And some extension methods, so that the code would look nice.
+
+Then with the mechanism called `implicit`s or, on Scala 3, `using` and `given`, these implementations can be passed for us automatically.
+
+However, we only provided some implementations. (next slide)
+--
+
 === !
 
 What if nobody wrote the implementation explicitly for *my type*?
@@ -108,6 +178,19 @@ No given instance of type Encoder[User] was found for parameter encoder of
 method asJson in object ...
 --
 
+[NOTE.speaker]
+--
+What if nobody wrote the implementation explicitly for *my type*?
+
+We can have, some `Address` and some `User` defined.
+
+What is going to happen when we try to encode them?
+
+The answer is that the compilation would fail. Because there are no implementations for these types.
+
+That's where the derivation comes in.
+--
+
 == Type class derivation
 
 image::img/derivation.png[Derivation,100%,100%]
@@ -117,12 +200,20 @@ image::img/derivation.png[Derivation,100%,100%]
 
 [NOTE.speaker]
 --
-* for some types implementations are some build-in
-* someone provided a way of combining implementations for each field
-  into an implementation for a whole `case class`
-* someone provided a way of combining implementations for each subtype
-  into an implementation for a whole `sealed` type
-* someone is usually the library's author
+Type class derivation.
+
+We'll have several of these pictures, which you can study at your own pace at home.
+
+For now what I want you to remember:
+
+ * derivation is about picking the implementations for some parts of your type, and combining them together into the implementation for the whole type
+ * for `case class`es, it means that you have to have an implementation for each field's type
+ * for `sealed traits and `enum`s, it means that you have to have implementation for each subtype
+ * because it combines the implementations from bottom-up someone, usually, the library's author have to provide implementations for the smallest blocks, usualy primitives
+ * and, because there is no magic, someone has to define how these small blocks can be combined, usually that's also the author of the library
+ * and if that sounds confusing, it only because you haven't spend way too much time on this subject
+
+Maybe some example would help.
 --
 
 === Derivation a'la Circe
@@ -154,6 +245,15 @@ case class User(name: String, address: Address)
 [%step]
 [source, scala]
 --
+Address("Paper St. 19")
+// { "value": "Paper St. 19" }
+User("John Smith", Address("Paper St. 19"))
+// { "name": "John Smith", "address": { "value": "Paper St. 19" } }
+--
+
+[%step]
+[source, scala]
+--
 import MagicImportOfSomethingThatCreatesEncoders.given
 
 Address("Paper St. 19").asJson // generates Encoder[Address] on demand
@@ -174,11 +274,21 @@ User("John Smith", Address("Paper St. 19")).asJson // using userEncoder
 
 [NOTE.speaker]
 --
-* reminder what API we have
-* automatic derivation - sometimes it's always on by default
-* automatic derivation has to work as a fallback to existing values
-* semiautomatic derivation - sometimes it's defined in the compatnion object
-* semiautomatic derivation must create a new value without looking for it in implicit scope, or NullPointerException/InitializationError/StackOverflowException
+As a reminder, we have this `Encoder`, which should turn your `case class` into JSON.
+
+It has this nice extension method.
+
+And we want to encode these `case class`es.
+
+The library's author has some assumption, like for instance, that each `case class` should be encoded as JSON object. Each field's name would turn into that object's key, and value, should be encoded, with the encoder for its type.
+
+Automatic derivation assumes that all the missing implementations, that you have not provided yourself have an automatic fallback, often enabled with an import. You add that import, fallback becomes available in the implicit scope, and everything works. (Sometimes, this is implemented in the compation objects and then it cannot be disabled).
+
+Semi-automatic derivation assumes that you want to define these implicits yourself, but you don't want to write their implementation. It gives you some method, which would give you a new implementation, and even if there is implicit of a demanded type in scope, it ignores it. (So that you won't end up with cyclical dependeny in the initialization).
+
+If you will not write thise implicits/givens yourself, you'll keep on getting implicit not found.
+
+But let's take a look a bit closer.
 --
 
 [.small-h2]
@@ -193,7 +303,18 @@ image::img/automatic-derivation-of-Address.png[Automatic Derivation of Address,1
 
 [NOTE.speaker]
 --
-For simplicity we're ignoring the sealed scenario
+What happens when we try to summon an instance with automatic derivation? Using `Address` as an example.
+
+(Reminder: this and the following diagrams are also something you can study at your own pace at home.)
+
+First of all, automatic derivation should be a fallback, so the compiler tries to find some existing implementation and failed.
+
+Then, it sees that we have a `case class`, and we just happen to have some mechanism implemented by authors which would
+
+ * obtain the implementation for each field
+ * combine them together
+
+Now, the semi-automatic.
 --
 
 [.small-h2]
@@ -208,7 +329,11 @@ image::img/semi-automatic-derivation-of-Address.png[Semi-automatic Derivation of
 
 [NOTE.speaker]
 --
-For simplicity we're ignoring the sealed scenario
+Here, we can see that there is no, try-existing-then-use-fallback part. We moved directly into creating new instance.
+
+If it cannot be created, the compilation fails, even if such instance exist and is in scope.
+
+Is there any difference when you try these approach with `User`.
 --
 
 [.small-h2]
@@ -223,7 +348,13 @@ image::img/automatic-derivation-of-User.png[Automatic Derivation of User,100%,10
 
 [NOTE.speaker]
 --
-For simplicity we're ignoring the sealed scenario
+Well, there is, the diagram is much bigger. Why?
+
+Because, with automatic derivation in scope the compiler automatically, as a fallback, not only the implementation for the type we asked for, but also implementations for the types nested in this type.
+
+Here, it triggers the automatic derivation of `Address`.
+
+Is it try for semi-automatic derivation as well?
 --
 
 [.small-h2]
@@ -231,27 +362,48 @@ For simplicity we're ignoring the sealed scenario
 
 [source, scala]
 --
-implicitly[Encoder[User]] // <-- creates new Encoder[User]
+deriveEncoder[User] // <-- creates new Encoder[User]
 --
 
 image::img/semi-automatic-derivation-of-User.png[Semi-automatic Derivation of User,100%,100%]
 
 [NOTE.speaker]
 --
-For simplicity we're ignoring the sealed scenario
+No. If we haven't imported automatic derivation next to semi-automatic, if we didn't create that implicit `Encoder` of `Address`, the compilation would fail.
+
+Semi-automatic derivation in Circe, and libraries based on its approach, are not recursive.
+
+In case you look at all of this, and as yourself... _(next slide)_
 --
 
 == OK, but where is the code?
 
 Wouldn't it be easier to understand with some examples?
 
+[NOTE.speaker]
+--
+...where is the code?
+
+Reminder: _(next slide)_
+--
+
 === 1. We are focusing on user-side of the derivation story
+
+[NOTE.speaker]
+--
+One. Our goal is it see how something that we didn't wrote but someone else affect us.
+--
 
 === 2. Code is in the link
 
 image::img/qr-code.png[Link to examples,40%,40%]
 
 https://github.com/MateuszKubuszok/derivation-benchmarks
+
+[NOTE.speaker]
+--
+Two. You can look at the code whenever you want.
+--
 
 [.small-h2.columns]
 === 3. If you really need the derivation-internals-explanation-experience
@@ -266,7 +418,13 @@ image::img/everyday-we-stray-further-from-god.png[3h later,80%,80%]
 
 [NOTE.speaker]
 --
-...imagine it's 3h later, you saw a lot of code examples and you understand at best as much as you do now.
+If we actually try to show it, and explain it during this presentation.
+
+It would take half the conference.
+
+The whole audience would be traumatised, and we would still not get to the point I'm trying to make.
+
+So, getting back to the main topic.
 --
 
 == Why people bother with semi-automatic derivation?
@@ -275,10 +433,23 @@ image::img/everyday-we-stray-further-from-god.png[3h later,80%,80%]
 
 [NOTE.speaker]
 --
-We're not going to question that use case.
+We're not going to question that use case. If you want to have the same implementation everywhere, you define it only once and reuse.
 --
 
 === 2. "Speed"
+
+[NOTE.speaker]
+--
+But the other reason people have strong preference for semi is speed.
+
+There were a lot of horror stories about a single implicit compiling for several minutes. (I saw some myself).
+
+A lot of people did investigation - compiler benchmarks, flame graphs, time spend in different compilation phases - and found that the cause is automatic derivation.
+
+Semi-automatic derivation solved their problems.
+
+But is it still true today?
+--
 
 === !
 
@@ -321,9 +492,13 @@ This shouldn't be hard?
 
 [NOTE.speaker]
 --
-We're going to use Circe.
+I defined some very mean nested case class. All you need to know that it's 5 levels of nesting deep.
 
-Common knowledge says autoderivation is very slow, and when your build times grow, use semi-automatic derivation, automatic derivation cosidered harmful, etc.
+I want to use Circe, both Encoder and Decoder, and do a round trip - encode this case class, and then decode it, for example to test if I get the same value or do some benchmarks.
+
+I try to do it once with automatic derivation, and once with semi-automatic approach.
+
+Both will be single-file modules which only generate a few codecs. How bad it can be? 
 --
 
 === !
@@ -335,7 +510,13 @@ image::img/json-compilation-times-1.png[Json Compilation Times,80%,80%]
 
 [NOTE.speaker]
 --
-Probably the common knowledge about auto vs semi is outdated on Scala 2.13.
+On Scala 2.13, not so bad. The compilation times are quite close, not deserving the bad press.
+
+Of course, if we ignore the fact that both need at least 12 seconds on cold JVM to compile a single short file.
+
+But on Scala 3 with automatic we have 46 seconds to compile a single file on cold JVM! On the other hand semi-auto works much faster!
+
+What about runtime?
 
 [source]
 ----
@@ -373,6 +554,17 @@ Scala 3.3.3
 [.small]
 (more is better)
 
+[NOTE.speaker]
+--
+Scala 2.13 has very small differences between auto and semi in benchmarks as well.
+
+Scala 3 on the other hand... semi-automatic derivation 1/3rd slower than Scala 2.13!
+
+But the automatic derivation is a disaster - an order of magnitude slower than that.
+
+Can we example these results?
+--
+
 [.small-h2]
 === Auto vs Semi on Scala 2
 
@@ -404,14 +596,29 @@ Scala 3.3.3
 
 [NOTE.speaker]
 --
-There was a series of Miles Sabin PRs improving performance of implicit resolution - 2 first PRs got closed but the third on got finally merged in 2.13-M5.
+Autor of Shapeless spend a lot of time contributing to the compiler, to optimize the implici resolution. He made a whole series of PRs.
 
-Some of that work was ported to Scala 3 but perhaps not everything yet.
+2 of them got closed, but the 3rd one finally got merged and released as a part of 2.13.0-M5.
+
+And then there was another one.
+
+We can see that he was pretty happy with the result because we boasted how the compilation times went down.
+
+Some of that work was ported to Scala 3 but perhaps not everything, or maybe these opimization do not play well with how Mirrors work.
+
+And all the bad press that automatic derivation has comes probably from before these PRs. Or maybe people were deriving exactly the same implicit 50 times.
+
+Putting these optimizations aside _(next slide)_
 --
 
 === !
 
 Could something else improve performance?
+
+[NOTE.speaker]
+--
+Before Scala 3, some people believed that yes. For instance replacing Shapeless.
+--
 
 == Magnolia
 
