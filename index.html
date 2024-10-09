@@ -619,7 +619,9 @@ jsoniterScalaSemi     10   4     8   1      s</code></pre></div></div></aside></
 <div class="paragraph"><p>And all the bad press that automatic derivation has comes probably from before these PRs. Or maybe people were deriving exactly the same implicit 50 times.</p></div>
 <div class="paragraph"><p>Putting these optimizations aside <em>(next slide)</em></p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>Could something else improve performance?</p></div>
 <aside class="notes"><div class="paragraph"><p>Before Scala 3, some people believed that yes. For instance replacing Shapeless.</p></div></aside></div></section></section>
-<section><section id="_magnolia"><h2>Magnolia</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>alternative to Shapeless/Mirrors</p></li><li class="fragment"><p>boasts about:</p><div class="ulist"><ul><li><p>better API</p></li><li><p>better performance</p></li><li><p>better compilation times</p></li><li><p>better error messages when derivation fail</p></li></ul></div></li></ul></div></div></section><section id="_error_messages" class="small"><h2>Error messages</h2><div class="slide-content"><div class="paragraph"><p>Semi-automatic derivation</p></div>
+<section><section id="_magnolia"><h2>Magnolia</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>alternative to Shapeless/Mirrors</p></li><li class="fragment"><p>boasts about:</p><div class="ulist"><ul><li><p>better API</p></li><li><p>better performance</p></li><li><p>better compilation times</p></li><li><p>better error messages when derivation fail</p></li></ul></div></li></ul></div><aside class="notes"><div class="paragraph"><p>Was created as an alternative to Shapeless for the most common use cases,</p></div>
+<div class="paragraph"><p>with better API, performance, compilation times, and error messages.</p></div>
+<div class="paragraph"><p>Let&#8217;s start with the last claim.</p></div></aside></div></section><section id="_error_messages" class="small"><h2>Error messages</h2><div class="slide-content"><div class="paragraph"><p>Semi-automatic derivation</p></div>
 <div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class Street(name: Either[String, Nothing]) // &lt;-- should not be able to derive name
 case class Address(street: Street)
 case class User(name: String, address: Address)</code></pre></div></div>
@@ -641,7 +643,13 @@ Failed to find an instance of Encoder[Either[String, Nothing]]</code></pre></div
      in parameter 'name' of product type Street
    implicit val streetEncoder: Encoder[Street] = EncoderSemi.derived
                                                              ^</code></pre></div></div>
-<aside class="notes"><div class="paragraph"><p>We implemented out own simplified Circe-Magnolia on Scala 2 and 3.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>Automatic derivation</p></div>
+<aside class="notes"><div class="paragraph"><p>Here we have some nested case classes - <code>User</code> has <code>Address</code>, <code>Address</code> has <code>Street</code>,
+where the last one stores <code>Nothing</code> in a field and cannot be encoded out of the box.</p></div>
+<div class="paragraph"><p>What kind of errors we&#8217;ll get?</p></div>
+<div class="paragraph"><p>Shapeless tells us that it cannot find implicit for the <code>Street</code> type.</p></div>
+<div class="paragraph"><p>Mirrors tell us that it cannot find implicit for the type of bad field (without naming that field and which class has it, but at least we know the location).</p></div>
+<div class="paragraph"><p>Magnolia tells us which field has a type that cannot be encoded, and in which case class this field is defined. Nice!</p></div>
+<div class="paragraph"><p>But it&#8217;s semi-automatic derivation. What about automatic?</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>Automatic derivation</p></div>
 <div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class Street(name: Either[String, Nothing])
 case class Address(street: Street)
 case class User(name: String, address: Address)
@@ -650,9 +658,16 @@ user.asJson</code></pre></div></div>
 <div class="paragraph"><p>Shapeless/Mirrors/Magnolia</p></div>
 <div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">could not find implicit value for parameter encoder: Encoder[User]
      user.asJson
-          ^</code></pre></div></div></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/json-compilation-times-2.png" alt="Json Compilation Times" width="80%" height="80%"></div>
+          ^</code></pre></div></div>
+<aside class="notes"><div class="paragraph"><p>Unfortunatelly, no matter which library we used, none of them could tell us anything useful: implicit not found for <code>User</code>.</p></div>
+<div class="paragraph"><p>All of them are equaly unhelpful.</p></div>
+<div class="paragraph"><p>Ok, so let&#8217;s take a look at the compilation times.</p></div></aside></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/json-compilation-times-2.png" alt="Json Compilation Times" width="80%" height="80%"></div>
 <div class="paragraph small"><small>(less is better)</small></div>
-<aside class="notes"><div class="paragraph"><p>Probably the common knowledge about Magnolia&#8217;s compile times on Scala 2 is outdated on Scala 3.</p></div>
+<aside class="notes"><div class="paragraph"><p>Perhaps at the times of Scala 2.12 the difference was bigger, but it seems that the compilation times on Scala 2.13 are close.</p></div>
+<div class="paragraph"><p>The small spike on hot JVM might be an error.</p></div>
+<div class="paragraph"><p>But something weird happens on Scala 3, Magnolia is <em>always</em> worse than Mirrors! Why?</p></div>
+<div class="paragraph"><p>Because on Scala 3 it was implemented with Mirrors so it adds its own overhead on top of Mirrors.</p></div>
+<div class="paragraph"><p>How about benchmarks?</p></div>
 <div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">                     Scala 2   Scala 3  Units
 compilation of      cold hot  cold hot
 circeGenericAuto      14   4    46  16      s
@@ -673,9 +688,19 @@ jsoniterScalaSemi     10   4     8   1      s</code></pre></div></div></aside></
 [info] JsonRoundTrips.circeMagnoliaAuto    thrpt   10   0.077 ± 0.039  ops/ms
 [info] JsonRoundTrips.circeMagnoliaSemi    thrpt   10   5.590 ± 0.013  ops/ms</code></pre></div></div>
 <div class="paragraph small"><small>(more is better)</small></div>
-<aside class="notes"><div class="paragraph"><p>Magnolia on Scala 3 was implemented on top of Mirrors.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>Shapeless/Mirrors/Magnolia - different APIs, same approach.</p></div>
-<div class="paragraph"><p>Did anyone try something else?</p></div></div></section></section>
-<section><section id="_jsoniter_scala"><h2>Jsoniter Scala</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>prioritizes <strong>performance</strong></p></li><li class="fragment"><p><strong>no automatic</strong> derivation</p></li><li class="fragment"><p><strong>no need</strong> to derive <strong>intermediate</strong> instances</p></li></ul></div><div class="paragraph fragment"><p>How?</p></div></div></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// Yes, only 1 codec, no need to manually derive implicits for nested cases
+<aside class="notes"><div class="paragraph"><p>There are some small differences on Scala 2.13, Magnolia is a bit faster, but still, results are very close.</p></div>
+<div class="paragraph"><p>On Scala 3, semi-automatic Magnolia seem to doo better than semi-automatic Mirrors, curious, but automatic Magnolia is order or magnitude slower than even automatic Mirrors!</p></div>
+<div class="paragraph"><p>I suspect that it might be about inlining, a but too much inlining.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>Shapeless/Mirrors/Magnolia - different APIs, same approach.</p></div>
+<div class="paragraph"><p>Did anyone try something else?</p></div>
+<aside class="notes"><div class="paragraph"><p>It seems that Shapeless/Mirrors/Magnolia are offering mostly different APIs - we don&#8217;t care about that in this talk.</p></div>
+<div class="paragraph"><p>They have slightly different errors with semi-automatic derivation.</p></div>
+<div class="paragraph"><p>Sometimes ridiculous performance on Scala 3 with automatic derivation.</p></div>
+<div class="paragraph"><p>But for us, users, it&#8217;s mostly the same DX.</p></div>
+<div class="paragraph"><p>Did anyone try something else?</p></div></aside></div></section></section>
+<section><section id="_jsoniter_scala"><h2>Jsoniter Scala</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>prioritizes <strong>performance</strong></p></li><li class="fragment"><p><strong>no automatic</strong> derivation</p></li><li class="fragment"><p><strong>no need</strong> to derive <strong>intermediate</strong> instances</p></li></ul></div><div class="paragraph fragment"><p>How?</p></div><aside class="notes"><div class="paragraph"><p>Jsoniter Scala is a library which has performance at heart.</p></div>
+<div class="paragraph"><p>It intentionally has no automatic derivation - why? Because intermediate type class instances can hurt performance.</p></div>
+<div class="paragraph"><p>But how you can have no intermediate instances, for intermediate types? Apparently Jsoniter handles it somehow.</p></div>
+<div class="paragraph"><p>How?</p></div></aside></div></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// Yes, only 1 codec, no need to manually derive implicits for nested cases
 implicit val outCodec: JsonValueCodec[Out] =
   JsonCodecMaker.make(CodecMakerConfig.withAllowRecursiveTypes(true))
 
@@ -683,12 +708,24 @@ def roundTrip(out: Out): (String, Either[Throwable, Out]) = {
   val str = writeToString(out)
   val parsed = scala.util.Try(readFromString(str)).toEither
   str -&gt; parsed
-}</code></pre></div></div></div></section><section id="_recursive_semi_automatic_derivation" class="small-h2"><h2>Recursive semi-automatic derivation</h2><div class="slide-content"><div class="imageblock"><img src="img/recursive-macro-derivation.png" alt="Recursive Macro Derivation"></div></div></section><section id="_recursive_semi_automatic_derivation_2" class="small-h2 columns"><h2>Recursive semi-automatic derivation</h2><div class="slide-content"><div class="openblock column"><div class="content"><div class="imageblock"><img src="img/derivation.png" alt="Derivation"></div>
+}</code></pre></div></div>
+<aside class="notes"><div class="paragraph"><p>Quite simply: its semiautomatic derivation is recursive and handles intermediate types in the same macro expansion.</p></div>
+<div class="paragraph"><p>You tell it to derive an implicit and it will handle all the nested case classes, and so on, inside that implicit implementation.</p></div>
+<div class="paragraph"><p>So the mechanism is a bit different to what we see in Circe-like libraries.</p></div></aside></div></section><section id="_recursive_semi_automatic_derivation" class="small-h2"><h2>Recursive semi-automatic derivation</h2><div class="slide-content"><div class="imageblock"><img src="img/recursive-macro-derivation.png" alt="Recursive Macro Derivation"></div>
+<aside class="notes"><div class="paragraph"><p>If we look at this diagram it looks more complex.</p></div>
+<div class="paragraph"><p>Why? Because everything that was delegated before on the compiler, typer and implicit search is now handled "manually" in the same macro, with if-elses, loop, or good old recursion.</p></div>
+<div class="paragraph"><p>If we zoom out a bit&#8230;&#8203; <em>(next slide)</em></p></div></aside></div></section><section id="_recursive_semi_automatic_derivation_2" class="small-h2 columns"><h2>Recursive semi-automatic derivation</h2><div class="slide-content"><div class="openblock column"><div class="content"><div class="imageblock"><img src="img/derivation.png" alt="Derivation"></div>
 <div class="ulist small"><ul><li><p>delegates everything to implicit search</p></li><li><p>types supported OOTB are handled via implicits in companion object</p></li></ul></div></div></div>
 <div class="openblock column"><div class="content"><div class="imageblock"><img src="img/recursive-macro-derivation.png" alt="Recursive Macro Derivation"></div>
-<div class="ulist small"><ul><li><p>use implicit search only for overrides</p></li><li><p>types supported OOTB are handled by macro, implicit scope is empty by default</p></li></ul></div></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>OK, but what does this gibberish mean for users?</p></div></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/json-compilation-times-3.png" alt="Json Compilation Times" width="80%" height="80%"></div>
+<div class="ulist small"><ul><li><p>use implicit search only for overrides</p></li><li><p>types supported OOTB are handled by macro, implicit scope is empty by default</p></li></ul></div></div></div>
+<aside class="notes"><div class="paragraph"><p>&#8230;&#8203;we might suspect why people prefer to develop things in the Circe style - it&#8217;s much easier for developer to now thing about these things!</p></div>
+<div class="paragraph"><p>You write some implicits and it works, while with macros you have to deal manually write conditional code and create trees. <em>(next slide)</em></p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>OK, but what does this gibberish mean for users?</p></div>
+<aside class="notes"><div class="paragraph"><p>Probably you are asking yourself this question, so let&#8217;s get to the numbers.</p></div></aside></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/json-compilation-times-3.png" alt="Json Compilation Times" width="80%" height="80%"></div>
 <div class="paragraph small"><small>(less is better)</small></div>
-<aside class="notes"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">                     Scala 2   Scala 3  Units
+<aside class="notes"><div class="paragraph"><p>Jsonier Scala beaten all of the other approaches: Shapeless, Mirrors, Magnolia,
+whether automatic or semiautomatic. 10 seconds on cold JVM going down to 4 seconds on Scala 2.13.
+8 seconds down to 1 on Scala 3. And we are only taking about the compilation time, not the actual performance!</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">                     Scala 2   Scala 3  Units
 compilation of      cold hot  cold hot
 circeGenericAuto      14   4    46  16      s
 circeGenericSemi      12   3    10   1      s
@@ -710,8 +747,14 @@ jsoniterScalaSemi     10   4     8   1      s</code></pre></div></div></aside></
 [info] JsonRoundTrips.circeMagnoliaSemi    thrpt   10   5.590 ± 0.013  ops/ms
 [info] JsonRoundTrips.jsoniterScalaSemi    thrpt   10  21.480 ± 0.070  ops/ms</code></pre></div></div>
 <div class="paragraph small"><small>(more is better)</small></div>
-<aside class="notes"><div class="paragraph"><p>I have to admit: I am cheating, Jsoniter parses and writes to String while, Circe parses and writes to Json AST.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>But can it be automatic?</p></div></div></section></section>
-<section><section id="_automatic_derivation_ala_chimney" class="small"><h2>Automatic derivation a&#8217;la Chimney</h2><div class="slide-content"><div class="paragraph fragment"><p>Similar problem:</p></div><div class="ulist"><ul><li class="fragment"><p>derivation should be recursive</p></li><li class="fragment"><p>macro should only use implicits for overrides</p></li></ul></div><div class="paragraph fragment"><p>But:</p></div><div class="ulist"><ul><li class="fragment"><p>automatic derivation should be available without breaking the 2 above</p></li></ul></div></div></section><section id="_solution" class="small-h2"><h2>Solution</h2><div class="slide-content"><div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">trait TypeClass[A] extends TypeClass.AutoDerived[A] { ... }
+<aside class="notes"><div class="paragraph"><p>In benchmarks, it was 3 times faster than the fastest Circe result.</p></div>
+<div class="paragraph"><p>And have to admit: I am cheating, Jsoniter parses and writes to String while, Circe parses and writes to Json AST.
+If Circe was first: parsing from String to Json and then Json to case class&#8230;&#8203; I suspect it would be even worse.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>But can it be automatic?</p></div>
+<aside class="notes"><div class="paragraph"><p>Jsoniter&#8217;s approach, while promising, still is not as easy for newcomers as automatic derivation, it requires some ceremony after all.</p></div>
+<div class="paragraph"><p>Can we get rid of it?</p></div></aside></div></section></section>
+<section><section id="_automatic_derivation_ala_chimney" class="small"><h2>Automatic derivation a&#8217;la Chimney</h2><div class="slide-content"><div class="paragraph fragment"><p>Similar problem:</p></div><div class="ulist"><ul><li class="fragment"><p>derivation should be recursive</p></li><li class="fragment"><p>macro should only use implicits for overrides</p></li></ul></div><div class="paragraph fragment"><p>But:</p></div><div class="ulist"><ul><li class="fragment"><p>automatic derivation should be available without breaking the 2 above</p></li></ul></div><aside class="notes"><div class="paragraph"><p>This is exactly the question I had when I was developing newer version of Chimney. We had a similar problem:</p></div>
+<div class="paragraph"><p>(read points)</p></div>
+<div class="paragraph"><p>Of course, we found a solution.</p></div></aside></div></section><section id="_solution" class="small-h2"><h2>Solution</h2><div class="slide-content"><div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">trait TypeClass[A] extends TypeClass.AutoDerived[A] { ... }
 object TypeClass {
 
   // semi-automatic derivation of TypeClass[A]
@@ -734,17 +777,30 @@ object TypeClass {
 def derivedImpl[A: Type]: Expr[TypeClass[A]] = ...</code></pre></div></div>
 <div class="paragraph small fragment"><small>(Disclaimer: understanding this code is <strong>not</strong> necessary to understand its implications on the next slides)</small></div>
 <div class="paragraph small fragment"><small>(Solutions for <a href="https://www.scala-lang.org/2024/08/19/given-priority-change-3.7.html"><em>New Prioritization of Givens in Scala 3.7</em></a> available at the checkout)</small></div>
-<aside class="notes"><div class="paragraph"><p>In case I forgot: <code>summonFrom</code> for ordering the summons the old way + <code>opaque type</code> for the result of such ordered summoning.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>Can we test it outside Chimney?</p></div>
-<div class="paragraph fragment"><p>Yes.</p></div></div></section><section id="_sanely_automatic_derivation" class="small-h2"><h2>Sanely-automatic derivation</h2><div class="slide-content"><div class="paragraph"><p>I implemented wrapper around Jsoniter (on Scala 3-only) which works like this:</p></div>
+<aside class="notes"><div class="paragraph"><p>We have 2 separate types: one is intended to be used by the /Users/dev, and one used only for automatic derivation.</p></div>
+<div class="paragraph"><p>Extension methods and other summoning should try to use the one we exposed to user, and then fallback on automatic derivation.</p></div>
+<div class="paragraph"><p>Both automatic and semiautomatic derivation can only use the type intended for users, so a macro never calls itself.</p></div>
+<div class="paragraph"><p>If you don&#8217;t get it, don&#8217;t worry, it&#8217;s enough if you just understand the implications.</p></div>
+<div class="paragraph"><p>If you have questions about givens and 3.7 we can talk about it later.</p></div>
+<div class="paragraph"><p>(In case I forgot: <code>summonFrom</code> for ordering the summons the old way + <code>opaque type</code> for the result of such ordered summoning.)</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>Can we test it outside Chimney?</p></div>
+<div class="paragraph fragment"><p>Yes.</p></div>
+<aside class="notes"><div class="paragraph"><p>I know that it works in Chimney, but we are using JSON examples for now.</p></div>
+<div class="paragraph"><p>The answer is "yes".</p></div></aside></div></section><section id="_sanely_automatic_derivation" class="small-h2"><h2>Sanely-automatic derivation</h2><div class="slide-content"><div class="paragraph"><p>I implemented wrapper around Jsoniter (on Scala 3-only) which works like this:</p></div>
 <div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">import jsonitersanely.* // &lt;-- 1 import, like with std automatic derivation
 
 def roundTrip(out: Out): (String, Either[Throwable, Out]) = {
   val str = write(out)
   val parsed = scala.util.Try(read[Out](str)).toEither
   str -&gt; parsed
-}</code></pre></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>How does it compare to Circe or normal Jsoniter Scala?</p></div></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/json-compilation-times-4.png" alt="Json Compilation Times" width="80%" height="80%"></div>
+}</code></pre></div></div>
+<aside class="notes"><div class="paragraph"><p>The approach, which I named sanely-automatic as opposed to semi-automatic, is something I implemented for Jsoniter.</p></div>
+<div class="paragraph"><p>Since I couldn&#8217;t just edit the Jsoniter code, I made a wrapper, and only for Scala 3 because it was easier for me.</p></div>
+<div class="paragraph"><p>As you can see, it&#8217;s used just like automatic derivation on Circe.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>How does it compare to Circe or normal Jsoniter Scala?</p></div>
+<aside class="notes"><div class="paragraph"><p>Did we managed to avoid all of the issues of automatic derivation without the ceremony of semi-automatic derivation?</p></div></aside></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/json-compilation-times-4.png" alt="Json Compilation Times" width="80%" height="80%"></div>
 <div class="paragraph small"><small>(less is better)</small></div>
-<aside class="notes"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">                     Scala 2   Scala 3  Units
+<aside class="notes"><div class="paragraph"><p>I would say "yes". Sanely-automatic derivation has amost the same compilation times as Jsoniter,
+much, much faster than Circe, no matter which apporach.</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">                     Scala 2   Scala 3  Units
 compilation of      cold hot  cold hot
 circeGenericAuto      14   4    46  16      s
 circeGenericSemi      12   3    10   1      s
@@ -766,8 +822,12 @@ jsoniterScalaSemi     10   4     8   1      s</code></pre></div></div></aside></
 [info] JsonRoundTrips.circeMagnoliaSemi    thrpt   10   5.590 ± 0.013  ops/ms
 [info] JsonRoundTrips.jsoniterScalaSemi    thrpt   10  21.480 ± 0.070  ops/ms
 [info] JsonRoundTrips.jsoniterScalaSanely  thrpt   10  21.408 ± 0.070  ops/ms</code></pre></div></div>
-<div class="paragraph small"><small>(more is better)</small></div></div></section><section><div class="slide-content"><div class="paragraph"><p>But <strong>Jsoniter parsing <code>String</code> s</strong> vs <strong>Circe parsing <code>Json</code></strong> might be apples vs oranges.</p></div>
-<div class="paragraph"><p>Can we have some more <strong>fair</strong> comparison?</p></div></div></section></section>
+<div class="paragraph small"><small>(more is better)</small></div>
+<aside class="notes"><div class="paragraph"><p>Benchmarks are virtually the same. We the fastest compilation, with the fastest bytecode, and no manually written implicits!</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>But <strong>Jsoniter parsing <code>String</code> s</strong> vs <strong>Circe parsing <code>Json</code></strong> might be apples vs oranges.</p></div>
+<div class="paragraph"><p>Can we have some more <strong>fair</strong> comparison?</p></div>
+<aside class="notes"><div class="paragraph"><p>However, you can remind me: these libraries have different philosophies, designs, etc.</p></div>
+<div class="paragraph"><p>The results might be the artifact of something else than just the way they implemented the derivation.</p></div>
+<div class="paragraph"><p>And you would be right which is why I also implemented something else.</p></div></aside></div></section></section>
 <section><section id="_more_fair_comparison"><h2>More fair comparison</h2></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">trait FastShowPretty[A] {
 
   def showPretty(
@@ -797,10 +857,25 @@ println(User("John", Address(Street("Paper St"))).showPretty())</code></pre></di
       name = "Paper St"
     )
   )
-)</code></pre></div></div></div></section><section><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>automatic and semi-automatic derivation using <strong>Shapeless</strong> (Scala 2)</p></li><li class="fragment"><p>automatic and semi-automatic derivation using <strong>Mirror</strong> s (Scala 3)</p></li><li class="fragment"><p>automatic and semi-automatic derivation using <strong>Magnolia</strong> (Scala 2 &amp; 3)</p></li><li class="fragment"><p>sanely-automatic derivation with macros and <strong>Chimney macro commons</strong> (Scala 2 &amp; 3)</p></li></ul></div>
-<aside class="notes"><div class="paragraph"><p>For startes I implemented sanely-automatic derivation in naive way - inlining everything.</p></div></aside></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/show-compilation-times-1.png" alt="Show Compilation Times" width="80%" height="80%"></div>
+)</code></pre></div></div>
+<aside class="notes"><div class="paragraph"><p>Some of you might be familiar with <code>Show</code> type class - it&#8217;s basically toString but "better".</p></div>
+<div class="paragraph"><p>It also has a <code>ShowPretty</code> variant, which adds some nice indents.</p></div>
+<div class="paragraph"><p>I decided to use that pretty variant, but instead of concatenating Strings, like in the oroginal, I decidec I would be appending them to StringBuilder.</p></div>
+<div class="paragraph"><p>This is how I&#8217;d like to use that type class, and what kind of output I&#8217;d like to see.</p></div></aside></div></section><section><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>automatic and semi-automatic derivation using <strong>Shapeless</strong> (Scala 2)</p></li><li class="fragment"><p>automatic and semi-automatic derivation using <strong>Mirror</strong> s (Scala 3)</p></li><li class="fragment"><p>automatic and semi-automatic derivation using <strong>Magnolia</strong> (Scala 2 &amp; 3)</p></li><li class="fragment"><p>sanely-automatic derivation with macros and <strong>Chimney macro commons</strong> (Scala 2 &amp; 3)</p></li></ul></div>
+<aside class="notes"><div class="paragraph"><p>Then I implemented it for</p></div>
+<div class="paragraph"><p>Shapeless on Scala 2</p></div>
+<div class="paragraph"><p>Mirrors on Scala 3</p></div>
+<div class="paragraph"><p>Magnolia on both 2 and 3</p></div>
+<div class="paragraph"><p>Sanely-automatic derivation with macros on both 2 and 3</p></div>
+<div class="paragraph"><p>For startes I implemented sanely-automatic derivation in naive way - inlining everything.</p></div>
+<div class="paragraph"><p>Then I run numbers for my evil, nested case class.</p></div></aside></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/show-compilation-times-1.png" alt="Show Compilation Times" width="80%" height="80%"></div>
 <div class="paragraph small"><small>(less is better)</small></div>
-<aside class="notes"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">                            Scala 2   Scala 3  Units
+<aside class="notes"><div class="paragraph"><p>It seems that some results are the same like with JSONs experiments.</p></div>
+<div class="paragraph"><p>Scala 2.13 approaches are close.</p></div>
+<div class="paragraph"><p>Semi-automatic results on Scala 3 are slightly better.</p></div>
+<div class="paragraph"><p>Automatic results on Scala 3 are much worse.</p></div>
+<div class="paragraph"><p>Naive macro implementation, isn&#8217;t very bad, especially considering how convenient it is, but it seems that it&#8217;s slower to compile than semi-automatic.</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">                            Scala 2   Scala 3  Units
 compilation of             cold hot  cold hot
 showGenericProgrammingAuto   15   5    53  29      s
 showGenericProgrammingSemi   10   2    10   2      s
@@ -819,11 +894,16 @@ showSanely                   14   4    16   5      s</code></pre></div></div></a
 [info] ShowOutputs.showGenericProgrammingSemi  thrpt   10  3.492 ± 0.013  ops/ms
 [info] ShowOutputs.showMagnoliaAuto            thrpt   10  0.090 ± 0.023  ops/ms
 [info] ShowOutputs.showMagnoliaSemi            thrpt   10  3.918 ± 0.012  ops/ms
-[info] ShowOutputs.showSanely                  thrpt   10  2.204 ± 0.396  ops/ms</code></pre></div></div></div></section><section><div class="slide-content"><div class="paragraph fragment"><p>But wait.</p></div>
+[info] ShowOutputs.showSanely                  thrpt   10  2.204 ± 0.396  ops/ms</code></pre></div></div>
+<aside class="notes"><div class="paragraph"><p>Similarly benchmarks, our naive sanely-automatic derivation isn&#8217;t terrible, but probably you would prefer anything else (other than automatic derivation on Scala 3).</p></div>
+<div class="paragraph"><p>So was it a failed experiment?</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph fragment"><p>But wait.</p></div>
 <div class="paragraph fragment"><p>Jsoniter had one more trick. It "caches" subroutines as <code>def</code> s.</p></div>
+<aside class="notes"><div class="paragraph"><p>If you need to handle the same type, you wouldn&#8217;t derive code for it again, but just call that def you defined when you handled it the first time.</p></div></aside>
 <div class="paragraph fragment"><p>Would that make a difference?</p></div></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/show-compilation-times-2.png" alt="Show Compilation Times" width="80%" height="80%"></div>
 <div class="paragraph small"><small>(less is better)</small></div>
-<aside class="notes"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">                            Scala 2   Scala 3  Units
+<aside class="notes"><div class="paragraph"><p>It seems that caching results of the derivation, inside the same macro, is not that difficult, and 1 non-invasive PR later, we run the numbers again.</p></div>
+<div class="paragraph"><p>We beat all the other approaches. It&#8217;s the fasted thing to compile. How about benchmarks?</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">                            Scala 2   Scala 3  Units
 compilation of             cold hot  cold hot
 showGenericProgrammingAuto   15   5    53  29      s
 showGenericProgrammingSemi   10   2    10   2      s
@@ -842,7 +922,9 @@ showSanely                    6   1     7   1      s</code></pre></div></div></a
 [info] ShowOutputs.showGenericProgrammingSemi  thrpt   10  3.492 ± 0.013  ops/ms
 [info] ShowOutputs.showMagnoliaAuto            thrpt   10  0.090 ± 0.023  ops/ms
 [info] ShowOutputs.showMagnoliaSemi            thrpt   10  3.918 ± 0.012  ops/ms
-[info] ShowOutputs.showSanely                  thrpt   10  4.800 ± 0.042  ops/ms</code></pre></div></div></div></section><section id="_bonus_debugging" class="small"><h2>Bonus: debugging</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class Street(name: Either[String, Nothing]) // &lt;-- this should fail the derivation
+[info] ShowOutputs.showSanely                  thrpt   10  4.800 ± 0.042  ops/ms</code></pre></div></div>
+<aside class="notes"><div class="paragraph"><p>Again, the fastest! The code that required as little ceremony as a single import is both the fastest to compile and the fastest to run!</p></div>
+<div class="paragraph"><p>But we haven&#8217;t talked about debugging these macros, did we?</p></div></aside></div></section><section id="_bonus_debugging" class="small"><h2>Bonus: debugging</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class Street(name: Either[String, Nothing]) // &lt;-- this should fail the derivation
 case class Address(street: Street)
 case class User(name: String, address: Address)
 
@@ -919,8 +1001,24 @@ def printObject(out: User): String = out.showPretty()</code></pre></div></div>
 [info]    - Cached result of def for example.ShowSanely.Address
 [info]  - Cached result of def for example.ShowSanely.User
 [info]   def printObject(out: User): String = out.showPretty()
-[info]                                                      ^</code></pre></div></div></div></section></section>
-<section id="_summary"><h2>Summary</h2></section>
+[info]                                                      ^</code></pre></div></div>
+<aside class="notes"><div class="paragraph"><p>Again, the example with nested case classes, and one nasty field.</p></div>
+<div class="paragraph"><p>We are able to provide quite a good error message!</p></div>
+<div class="paragraph"><p>And with a single scalac option we can also take a look how the code is generated with a structured logging!</p></div>
+<div class="paragraph"><p>Even if we had some doubts after reading the error message with a whole log, we know exactly what happened.</p></div></aside></div></section></section>
+<section id="_summary"><h2>Summary</h2><div class="slide-content"><aside class="notes"><div class="paragraph"><p>Last year&#8217;s surver showed that 56% of developers complained about compile times. That the effort should be made to make the compiler fater.</p></div>
+<div class="paragraph"><p>Perhaps, that&#8217;s not the compiler. Perhaps, we just did the derivation the wrong way.</p></div>
+<div class="paragraph"><p>We could see that through <em>great</em> effort automatic-derivation was optimized to be as performant as semi-automatic one on Scala 2.13. It took several years.</p></div>
+<div class="paragraph"><p>It hasn&#8217;t yet happened on Scala 3.</p></div>
+<div class="paragraph"><p>And then we could beat all that effort with a single PR to a macro, that just doesn&#8217;t follow the popular conventions. For me it means that the conventions are at fault.</p></div>
+<div class="paragraph"><p>It doesn&#8217;t mean that Shapeless/Mirrors/Magnolia/all the current inline def and compiletime ops effort was in vain - if you take a look at libraries implemented
+with these tools and libraries implemented with macros, you can think that many of our popular libraries wouldn&#8217;t be faster without Shapeless.</p></div>
+<div class="paragraph"><p>They would never have been created in the first place. These tools make it much easier to start learning about metaprogramming and even with them it&#8217;s difficult.</p></div>
+<div class="paragraph"><p>But if we want to have user friendly libraries in Scala - and I know we all do - we should start challenging the current solutions.</p></div>
+<div class="paragraph"><p>So we should start giving - in a polite and respectful way - feedback to library maintainers that we can do better. That it&#8217;s the libraries
+that can make compilation time shorter, generated code faster, and error messages better.</p></div>
+<div class="paragraph"><p>And I&#8217;m fine if that won&#8217;t happen with the sanely-automatic derivation I invented, as long as thing will improve.</p></div>
+<div class="paragraph"><p>Thank you!</p></div></aside></div></section>
 <section id="_thank_you"><h2>Thank you!</h2><div class="slide-content"><div class="imageblock"><img src="img/qr-code.png" alt="Link to examples" width="40%" height="40%"></div>
 <div class="paragraph"><p><a href="https://github.com/MateuszKubuszok/derivation-benchmarks" class="bare">https://github.com/MateuszKubuszok/derivation-benchmarks</a></p></div></div></section></div></div><script src="./reveal.js/dist/reveal.js"></script><script>Array.prototype.slice.call(document.querySelectorAll('.slides section')).forEach(function(slide) {
   if (slide.getAttribute('data-background-color')) return;

@@ -631,6 +631,15 @@ Before Scala 3, some people believed that yes. For instance replacing Shapeless.
    - better compilation times
    - better error messages when derivation fail
 
+[NOTE.speaker]
+--
+Was created as an alternative to Shapeless for the most common use cases,
+
+with better API, performance, compilation times, and error messages.
+
+Let's start with the last claim.
+--
+
 [.small]
 === Error messages
 
@@ -682,7 +691,18 @@ magnolia: could not find Encoder.Typeclass for type Either[String,Nothing]
 
 [NOTE.speaker]
 --
-We implemented out own simplified Circe-Magnolia on Scala 2 and 3.
+Here we have some nested case classes - `User` has `Address`, `Address` has `Street`,
+where the last one stores `Nothing` in a field and cannot be encoded out of the box.
+
+What kind of errors we'll get?
+
+Shapeless tells us that it cannot find implicit for the `Street` type.
+
+Mirrors tell us that it cannot find implicit for the type of bad field (without naming that field and which class has it, but at least we know the location).
+
+Magnolia tells us which field has a type that cannot be encoded, and in which case class this field is defined. Nice!
+
+But it's semi-automatic derivation. What about automatic?
 --
 
 === !
@@ -707,6 +727,15 @@ could not find implicit value for parameter encoder: Encoder[User]
           ^
 --
 
+[NOTE.speaker]
+--
+Unfortunatelly, no matter which library we used, none of them could tell us anything useful: implicit not found for `User`.
+
+All of them are equaly unhelpful.
+
+Ok, so let's take a look at the compilation times.
+--
+
 === !
 
 image::img/json-compilation-times-2.png[Json Compilation Times,80%,80%]
@@ -716,7 +745,15 @@ image::img/json-compilation-times-2.png[Json Compilation Times,80%,80%]
 
 [NOTE.speaker]
 --
-Probably the common knowledge about Magnolia's compile times on Scala 2 is outdated on Scala 3.
+Perhaps at the times of Scala 2.12 the difference was bigger, but it seems that the compilation times on Scala 2.13 are close.
+
+The small spike on hot JVM might be an error.
+
+But something weird happens on Scala 3, Magnolia is _always_ worse than Mirrors! Why?
+
+Because on Scala 3 it was implemented with Mirrors so it adds its own overhead on top of Mirrors.
+
+How about benchmarks?
 
 [source]
 ----
@@ -760,7 +797,11 @@ Scala 3.3.3
 
 [NOTE.speaker]
 --
-Magnolia on Scala 3 was implemented on top of Mirrors.
+There are some small differences on Scala 2.13, Magnolia is a bit faster, but still, results are very close.
+
+On Scala 3, semi-automatic Magnolia seem to doo better than semi-automatic Mirrors, curious, but automatic Magnolia is order or magnitude slower than even automatic Mirrors!
+
+I suspect that it might be about inlining, a but too much inlining.
 --
 
 === !
@@ -768,6 +809,19 @@ Magnolia on Scala 3 was implemented on top of Mirrors.
 Shapeless/Mirrors/Magnolia - different APIs, same approach.
 
 Did anyone try something else?
+
+[NOTE.speaker]
+--
+It seems that Shapeless/Mirrors/Magnolia are offering mostly different APIs - we don't care about that in this talk.
+
+They have slightly different errors with semi-automatic derivation.
+
+Sometimes ridiculous performance on Scala 3 with automatic derivation.
+
+But for us, users, it's mostly the same DX.
+
+Did anyone try something else?
+--
 
 == Jsoniter Scala
 
@@ -778,6 +832,17 @@ Did anyone try something else?
 
 [%step]
 How?
+
+[NOTE.speaker]
+--
+Jsoniter Scala is a library which has performance at heart.
+
+It intentionally has no automatic derivation - why? Because intermediate type class instances can hurt performance.
+
+But how you can have no intermediate instances, for intermediate types? Apparently Jsoniter handles it somehow.
+
+How?
+--
 
 === !
 
@@ -794,10 +859,28 @@ def roundTrip(out: Out): (String, Either[Throwable, Out]) = {
 }
 --
 
+[NOTE.speaker]
+--
+Quite simply: its semiautomatic derivation is recursive and handles intermediate types in the same macro expansion.
+
+You tell it to derive an implicit and it will handle all the nested case classes, and so on, inside that implicit implementation.
+
+So the mechanism is a bit different to what we see in Circe-like libraries.
+--
+
 [.small-h2]
 === Recursive semi-automatic derivation
 
 image::img/recursive-macro-derivation.png[Recursive Macro Derivation]
+
+[NOTE.speaker]
+--
+If we look at this diagram it looks more complex.
+
+Why? Because everything that was delegated before on the compiler, typer and implicit search is now handled "manually" in the same macro, with if-elses, loop, or good old recursion.
+
+If we zoom out a bit... _(next slide)_
+--
 
 [.small-h2.columns]
 === Recursive semi-automatic derivation
@@ -820,9 +903,21 @@ image::img/recursive-macro-derivation.png[Recursive Macro Derivation]
 * types supported OOTB are handled by macro, implicit scope is empty by default
 --
 
+[NOTE.speaker]
+--
+...we might suspect why people prefer to develop things in the Circe style - it's much easier for developer to now thing about these things!
+
+You write some implicits and it works, while with macros you have to deal manually write conditional code and create trees. _(next slide)_
+--
+
 === !
 
 OK, but what does this gibberish mean for users?
+
+[NOTE.speaker]
+--
+Probably you are asking yourself this question, so let's get to the numbers.
+--
 
 === !
 
@@ -833,6 +928,9 @@ image::img/json-compilation-times-3.png[Json Compilation Times,80%,80%]
 
 [NOTE.speaker]
 --
+Jsonier Scala beaten all of the other approaches: Shapeless, Mirrors, Magnolia,
+whether automatic or semiautomatic. 10 seconds on cold JVM going down to 4 seconds on Scala 2.13.
+8 seconds down to 1 on Scala 3. And we are only taking about the compilation time, not the actual performance!
 
 [source]
 ----
@@ -878,12 +976,22 @@ Scala 3.3.3
 
 [NOTE.speaker]
 --
-I have to admit: I am cheating, Jsoniter parses and writes to String while, Circe parses and writes to Json AST.
+In benchmarks, it was 3 times faster than the fastest Circe result.
+
+And have to admit: I am cheating, Jsoniter parses and writes to String while, Circe parses and writes to Json AST.
+If Circe was first: parsing from String to Json and then Json to case class... I suspect it would be even worse.
 --
 
 === !
 
 But can it be automatic?
+
+[NOTE.speaker]
+--
+Jsoniter's approach, while promising, still is not as easy for newcomers as automatic derivation, it requires some ceremony after all.
+
+Can we get rid of it?
+--
 
 [.small]
 == Automatic derivation a'la Chimney
@@ -900,6 +1008,15 @@ But:
 
 [%step]
 * automatic derivation should be available without breaking the 2 above
+
+[NOTE.speaker]
+--
+This is exactly the question I had when I was developing newer version of Chimney. We had a similar problem:
+
+(read points)
+
+Of course, we found a solution.
+--
 
 [.small-h2]
 === Solution
@@ -950,7 +1067,17 @@ def derivedImpl[A: Type]: Expr[TypeClass[A]] = ...
 
 [NOTE.speaker]
 --
-In case I forgot: `summonFrom` for ordering the summons the old way + `opaque type` for the result of such ordered summoning.
+We have 2 separate types: one is intended to be used by the {user-home}, and one used only for automatic derivation.
+
+Extension methods and other summoning should try to use the one we exposed to user, and then fallback on automatic derivation.
+
+Both automatic and semiautomatic derivation can only use the type intended for users, so a macro never calls itself.
+
+If you don't get it, don't worry, it's enough if you just understand the implications.
+
+If you have questions about givens and 3.7 we can talk about it later.
+
+(In case I forgot: `summonFrom` for ordering the summons the old way + `opaque type` for the result of such ordered summoning.)
 --
 
 === !
@@ -959,6 +1086,13 @@ Can we test it outside Chimney?
 
 [%step]
 Yes.
+
+[NOTE.speaker]
+--
+I know that it works in Chimney, but we are using JSON examples for now.
+
+The answer is "yes".
+--
 
 [.small-h2]
 === Sanely-automatic derivation
@@ -976,9 +1110,23 @@ def roundTrip(out: Out): (String, Either[Throwable, Out]) = {
 }
 --
 
+[NOTE.speaker]
+--
+The approach, which I named sanely-automatic as opposed to semi-automatic, is something I implemented for Jsoniter.
+
+Since I couldn't just edit the Jsoniter code, I made a wrapper, and only for Scala 3 because it was easier for me.
+
+As you can see, it's used just like automatic derivation on Circe.
+--
+
 === !
 
 How does it compare to Circe or normal Jsoniter Scala?
+
+[NOTE.speaker]
+--
+Did we managed to avoid all of the issues of automatic derivation without the ceremony of semi-automatic derivation?
+--
 
 === !
 
@@ -989,6 +1137,8 @@ image::img/json-compilation-times-4.png[Json Compilation Times,80%,80%]
 
 [NOTE.speaker]
 --
+I would say "yes". Sanely-automatic derivation has amost the same compilation times as Jsoniter,
+much, much faster than Circe, no matter which apporach.
 
 [source]
 ----
@@ -1033,11 +1183,25 @@ Scala 3.3.3
 [.small]
 (more is better)
 
+[NOTE.speaker]
+--
+Benchmarks are virtually the same. We the fastest compilation, with the fastest bytecode, and no manually written implicits!
+--
+
 === !
 
 But *Jsoniter parsing `String` s* vs *Circe parsing `Json`* might be apples vs oranges.
 
 Can we have some more *fair* comparison?
+
+[NOTE.speaker]
+--
+However, you can remind me: these libraries have different philosophies, designs, etc.
+
+The results might be the artifact of something else than just the way they implemented the derivation.
+
+And you would be right which is why I also implemented something else.
+--
 
 == More fair comparison
 
@@ -1085,6 +1249,17 @@ User(
 )
 --
 
+[NOTE.speaker]
+--
+Some of you might be familiar with `Show` type class - it's basically toString but "better".
+
+It also has a `ShowPretty` variant, which adds some nice indents.
+
+I decided to use that pretty variant, but instead of concatenating Strings, like in the oroginal, I decidec I would be appending them to StringBuilder.
+
+This is how I'd like to use that type class, and what kind of output I'd like to see.
+--
+
 === !
 
 [%step]
@@ -1095,7 +1270,19 @@ User(
 
 [NOTE.speaker]
 --
+Then I implemented it for
+
+Shapeless on Scala 2
+
+Mirrors on Scala 3
+
+Magnolia on both 2 and 3
+
+Sanely-automatic derivation with macros on both 2 and 3
+
 For startes I implemented sanely-automatic derivation in naive way - inlining everything.
+
+Then I run numbers for my evil, nested case class.
 --
 
 === !
@@ -1107,6 +1294,15 @@ image::img/show-compilation-times-1.png[Show Compilation Times,80%,80%]
 
 [NOTE.speaker]
 --
+It seems that some results are the same like with JSONs experiments.
+
+Scala 2.13 approaches are close.
+
+Semi-automatic results on Scala 3 are slightly better.
+
+Automatic results on Scala 3 are much worse.
+
+Naive macro implementation, isn't very bad, especially considering how convenient it is, but it seems that it's slower to compile than semi-automatic.
 
 [source]
 ----
@@ -1146,6 +1342,13 @@ Scala 3.3.3
 [info] ShowOutputs.showSanely                  thrpt   10  2.204 ± 0.396  ops/ms
 --
 
+[NOTE.speaker]
+--
+Similarly benchmarks, our naive sanely-automatic derivation isn't terrible, but probably you would prefer anything else (other than automatic derivation on Scala 3).
+
+So was it a failed experiment?
+--
+
 === !
 
 [%step]
@@ -1153,6 +1356,11 @@ But wait.
 
 [%step]
 Jsoniter had one more trick. It "caches" subroutines as `def` s.
+
+[NOTE.speaker]
+--
+If you need to handle the same type, you wouldn't derive code for it again, but just call that def you defined when you handled it the first time.
+--
 
 [%step]
 Would that make a difference?
@@ -1166,6 +1374,9 @@ image::img/show-compilation-times-2.png[Show Compilation Times,80%,80%]
 
 [NOTE.speaker]
 --
+It seems that caching results of the derivation, inside the same macro, is not that difficult, and 1 non-invasive PR later, we run the numbers again.
+
+We beat all the other approaches. It's the fasted thing to compile. How about benchmarks?
 
 [source]
 ----
@@ -1203,6 +1414,13 @@ Scala 3.3.3
 [info] ShowOutputs.showMagnoliaAuto            thrpt   10  0.090 ± 0.023  ops/ms
 [info] ShowOutputs.showMagnoliaSemi            thrpt   10  3.918 ± 0.012  ops/ms
 [info] ShowOutputs.showSanely                  thrpt   10  4.800 ± 0.042  ops/ms
+--
+
+[NOTE.speaker]
+--
+Again, the fastest! The code that required as little ceremony as a single import is both the fastest to compile and the fastest to run!
+
+But we haven't talked about debugging these macros, did we?
 --
 
 [.small]
@@ -1300,7 +1518,45 @@ def printObject(out: User): String = out.showPretty()
 [info]                                                      ^
 --
 
+[NOTE.speaker]
+--
+Again, the example with nested case classes, and one nasty field.
+
+We are able to provide quite a good error message!
+
+And with a single scalac option we can also take a look how the code is generated with a structured logging!
+
+Even if we had some doubts after reading the error message with a whole log, we know exactly what happened.
+--
+
 == Summary
+
+[NOTE.speaker]
+--
+Last year's surver showed that 56% of developers complained about compile times. That the effort should be made to make the compiler fater.
+
+Perhaps, that's not the compiler. Perhaps, we just did the derivation the wrong way.
+
+We could see that through _great_ effort automatic-derivation was optimized to be as performant as semi-automatic one on Scala 2.13. It took several years.
+
+It hasn't yet happened on Scala 3.
+
+And then we could beat all that effort with a single PR to a macro, that just doesn't follow the popular conventions. For me it means that the conventions are at fault.
+
+It doesn't mean that Shapeless/Mirrors/Magnolia/all the current inline def and compiletime ops effort was in vain - if you take a look at libraries implemented
+with these tools and libraries implemented with macros, you can think that many of our popular libraries wouldn't be faster without Shapeless.
+
+They would never have been created in the first place. These tools make it much easier to start learning about metaprogramming and even with them it's difficult.
+
+But if we want to have user friendly libraries in Scala - and I know we all do - we should start challenging the current solutions.
+
+So we should start giving - in a polite and respectful way - feedback to library maintainers that we can do better. That it's the libraries
+that can make compilation time shorter, generated code faster, and error messages better.
+
+And I'm fine if that won't happen with the sanely-automatic derivation I invented, as long as thing will improve.
+
+Thank you!
+--
 
 == Thank you!
 
