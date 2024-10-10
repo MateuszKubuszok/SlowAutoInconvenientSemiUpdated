@@ -1,5 +1,5 @@
 // 35 minutes
-:revealjs_totalTime: 2100
+:revealjs_totalTime: 1800
 :revealjs_theme: serif
 :revealjs_help: true
 
@@ -19,7 +19,7 @@ Most of you probably started with so-called automatic derivation, and at some po
 
 Some of you moved to moved to so-called semi-automatic derivation, which is much more clumsy, but tries to solve some of the issues with automatic derivation.
 
-In this presentation, I'll try to show that all of these issues are not some inherit cost of using type class derivation, but that we all did it wrong.
+In this presentation, I'll try to show that all of these issues are not some inherent cost of using type class derivation, but that we all did it wrong.
 --
 
 == About me
@@ -1533,7 +1533,7 @@ Even if we had some doubts after reading the error message with a whole log, we 
 
 [NOTE.speaker]
 --
-Last year's surver showed that 56% of developers complained about compile times. That the effort should be made to make the compiler fater.
+Last year's survey showed that 53% of developers complained about compile times. That the effort should be made to make the compiler faster.
 
 Perhaps, that's not the compiler. Perhaps, we just did the derivation the wrong way.
 
