@@ -146,7 +146,7 @@ For starters, we have implementation for the primitives.
 
 And some extension methods, so that the code would look nice.
 
-Then with the mechanism called `implicit`s or, on Scala 3, `using` and `given`, these implementations can be passed for us automatically.
+Then with the mechanism called `implicit` s or, on Scala 3, `using` and `given`, these implementations can be passed for us automatically.
 
 However, we only provided some implementations. (next slide)
 --
@@ -196,7 +196,7 @@ That's where the derivation comes in.
 image::img/derivation.png[Derivation,100%,100%]
 
 [.small]
-(If you don't understand this diagram, you probably haven't spend 600h on a topic that most sane people avoid. The main reason we have these images is because people like colorful images on slides.)
+(If you don't understand this diagram, you probably haven't spend 600h on a topic that most sane people avoid.)
 
 [NOTE.speaker]
 --
@@ -207,8 +207,8 @@ We'll have several of these pictures, which you can study at your own pace at ho
 For now what I want you to remember:
 
  * derivation is about picking the implementations for some parts of your type, and combining them together into the implementation for the whole type
- * for `case class`es, it means that you have to have an implementation for each field's type
- * for `sealed traits and `enum`s, it means that you have to have implementation for each subtype
+ * for `case class` es, it means that you have to have an implementation for each field's type
+ * for `sealed trait` s and `enum` s, it means that you have to have implementation for each subtype
  * because it combines the implementations from bottom-up someone, usually, the library's author have to provide implementations for the smallest blocks, usualy primitives
  * and, because there is no magic, someone has to define how these small blocks can be combined, usually that's also the author of the library
  * and if that sounds confusing, it only because you haven't spend way too much time on this subject
@@ -488,7 +488,8 @@ implicit val outEncoder: Encoder[Out] = deriveEncoder
 // instead of automatic derivation import.
 --
 
-This shouldn't be hard?
+[%step]
+This shouldn't be hard on compiler?
 
 [NOTE.speaker]
 --
@@ -736,6 +737,18 @@ All of them are equaly unhelpful.
 Ok, so let's take a look at the compilation times.
 --
 
+=== Round trip (reminder)
+
+[source,scala]
+--
+// Out - the outerermost of a deep nested, nasty case class structure
+def roundTrip(out: Out): (Json, Result[Out]) = {
+  val json = out.asJson // encode 
+  val parsed = json.as[Out] // decode
+  json -> parsed
+}
+--
+
 === !
 
 image::img/json-compilation-times-2.png[Json Compilation Times,80%,80%]
@@ -801,7 +814,7 @@ There are some small differences on Scala 2.13, Magnolia is a bit faster, but st
 
 On Scala 3, semi-automatic Magnolia seem to doo better than semi-automatic Mirrors, curious, but automatic Magnolia is order or magnitude slower than even automatic Mirrors!
 
-I suspect that it might be about inlining, a but too much inlining.
+I suspect that it might be about inlining, a bit too much inlining.
 --
 
 === !
@@ -1237,7 +1250,7 @@ case class User(name: String, address: Address)
 println(User("John", Address(Street("Paper St"))).showPretty())
 --
 
-[source,scala]
+[source]
 --
 User(
   name = "John",
@@ -1255,7 +1268,7 @@ Some of you might be familiar with `Show` type class - it's basically toString b
 
 It also has a `ShowPretty` variant, which adds some nice indents.
 
-I decided to use that pretty variant, but instead of concatenating Strings, like in the oroginal, I decidec I would be appending them to StringBuilder.
+I decided to use that pretty variant, but instead of concatenating Strings, like in the original, I decided I would be appending them to StringBuilder.
 
 This is how I'd like to use that type class, and what kind of output I'd like to see.
 --
@@ -1342,6 +1355,9 @@ Scala 3.3.3
 [info] ShowOutputs.showSanely                  thrpt   10  2.204 ± 0.396  ops/ms
 --
 
+[.small]
+(more is better)
+
 [NOTE.speaker]
 --
 Similarly benchmarks, our naive sanely-automatic derivation isn't terrible, but probably you would prefer anything else (other than automatic derivation on Scala 3).
@@ -1416,6 +1432,9 @@ Scala 3.3.3
 [info] ShowOutputs.showSanely                  thrpt   10  4.800 ± 0.042  ops/ms
 --
 
+[.small]
+(more is better)
+
 [NOTE.speaker]
 --
 Again, the fastest! The code that required as little ceremony as a single import is both the fastest to compile and the fastest to run!
@@ -1437,7 +1456,7 @@ def printObject(out: User): String = out.showPretty()
 --
 
 
-[source,scala]
+[source]
 --
 [error] .../ShowSanely.scala:12:54: Failed to derive showing for value : example.ShowSanely.User:
 [error] No build-in support nor implicit for type scala.Nothing
@@ -1446,7 +1465,7 @@ def printObject(out: User): String = out.showPretty()
 --
 
 [%step]
-[source,scala]
+[source]
 --
 [info] .../ShowSanely.scala:12:54: Logs:
 [info]  - Started derivation for value : example.ShowSanely.User

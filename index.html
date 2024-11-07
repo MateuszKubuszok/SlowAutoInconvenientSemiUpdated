@@ -460,7 +460,7 @@ object Encoder {
 <div class="paragraph"><p>We want to be able to encode our type, whatever it is, to JSON.</p></div>
 <div class="paragraph"><p>For starters, we have implementation for the primitives.</p></div>
 <div class="paragraph"><p>And some extension methods, so that the code would look nice.</p></div>
-<div class="paragraph"><p>Then with the mechanism called <code>implicit`s or, on Scala 3, `using</code> and <code>given</code>, these implementations can be passed for us automatically.</p></div>
+<div class="paragraph"><p>Then with the mechanism called <code>implicit</code> s or, on Scala 3, <code>using</code> and <code>given</code>, these implementations can be passed for us automatically.</p></div>
 <div class="paragraph"><p>However, we only provided some implementations. (next slide)</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>What if nobody wrote the implementation explicitly for <strong>my type</strong>?</p></div>
 <div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class Address(value: String)
 case class User(name: String, address: Address)</code></pre></div></div>
@@ -475,10 +475,10 @@ method asJson in object ...</code></pre></div></div>
 <div class="paragraph"><p>What is going to happen when we try to encode them?</p></div>
 <div class="paragraph"><p>The answer is that the compilation would fail. Because there are no implementations for these types.</p></div>
 <div class="paragraph"><p>That&#8217;s where the derivation comes in.</p></div></aside></div></section></section>
-<section><section id="_type_class_derivation"><h2>Type class derivation</h2><div class="slide-content"><div class="imageblock"><img src="img/derivation.png" alt="Derivation" width="100%" height="100%"></div><div class="paragraph small"><small>(If you don&#8217;t understand this diagram, you probably haven&#8217;t spend 600h on a topic that most sane people avoid. The main reason we have these images is because people like colorful images on slides.)</small></div><aside class="notes"><div class="paragraph"><p>Type class derivation.</p></div>
+<section><section id="_type_class_derivation"><h2>Type class derivation</h2><div class="slide-content"><div class="imageblock"><img src="img/derivation.png" alt="Derivation" width="100%" height="100%"></div><div class="paragraph small"><small>(If you don&#8217;t understand this diagram, you probably haven&#8217;t spend 600h on a topic that most sane people avoid.)</small></div><aside class="notes"><div class="paragraph"><p>Type class derivation.</p></div>
 <div class="paragraph"><p>We&#8217;ll have several of these pictures, which you can study at your own pace at home.</p></div>
 <div class="paragraph"><p>For now what I want you to remember:</p></div>
-<div class="ulist"><ul><li><p>derivation is about picking the implementations for some parts of your type, and combining them together into the implementation for the whole type</p></li><li><p>for `case class`es, it means that you have to have an implementation for each field&#8217;s type</p></li><li><p>for `sealed traits and `enum`s, it means that you have to have implementation for each subtype</p></li><li><p>because it combines the implementations from bottom-up someone, usually, the library&#8217;s author have to provide implementations for the smallest blocks, usualy primitives</p></li><li><p>and, because there is no magic, someone has to define how these small blocks can be combined, usually that&#8217;s also the author of the library</p></li><li><p>and if that sounds confusing, it only because you haven&#8217;t spend way too much time on this subject</p></li></ul></div>
+<div class="ulist"><ul><li><p>derivation is about picking the implementations for some parts of your type, and combining them together into the implementation for the whole type</p></li><li><p>for <code>case class</code> es, it means that you have to have an implementation for each field&#8217;s type</p></li><li><p>for <code>sealed trait</code> s and <code>enum</code> s, it means that you have to have implementation for each subtype</p></li><li><p>because it combines the implementations from bottom-up someone, usually, the library&#8217;s author have to provide implementations for the smallest blocks, usualy primitives</p></li><li><p>and, because there is no magic, someone has to define how these small blocks can be combined, usually that&#8217;s also the author of the library</p></li><li><p>and if that sounds confusing, it only because you haven&#8217;t spend way too much time on this subject</p></li></ul></div>
 <div class="paragraph"><p>Maybe some example would help.</p></div></aside></div></section><section id="_derivation_ala_circe"><h2>Derivation a&#8217;la Circe</h2></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">trait Encoder[A] {
   def apply(a: A): Json // &lt;-- JSON as data
 }</code></pre></div></div>
@@ -569,7 +569,7 @@ implicit val in5Encoder: Encoder[In5] = deriveEncoder
 implicit val outDecoder: Decoder[Out] = deriveDecoder
 implicit val outEncoder: Encoder[Out] = deriveEncoder
 // instead of automatic derivation import.</code></pre></div></div>
-<div class="paragraph"><p>This shouldn&#8217;t be hard?</p></div>
+<div class="paragraph fragment"><p>This shouldn&#8217;t be hard on compiler?</p></div>
 <aside class="notes"><div class="paragraph"><p>I defined some very mean nested case class. All you need to know that it&#8217;s 5 levels of nesting deep.</p></div>
 <div class="paragraph"><p>I want to use Circe, both Encoder and Decoder, and do a round trip - encode this case class, and then decode it, for example to test if I get the same value or do some benchmarks.</p></div>
 <div class="paragraph"><p>I try to do it once with automatic derivation, and once with semi-automatic approach.</p></div>
@@ -661,7 +661,12 @@ user.asJson</code></pre></div></div>
           ^</code></pre></div></div>
 <aside class="notes"><div class="paragraph"><p>Unfortunatelly, no matter which library we used, none of them could tell us anything useful: implicit not found for <code>User</code>.</p></div>
 <div class="paragraph"><p>All of them are equaly unhelpful.</p></div>
-<div class="paragraph"><p>Ok, so let&#8217;s take a look at the compilation times.</p></div></aside></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/json-compilation-times-2.png" alt="Json Compilation Times" width="80%" height="80%"></div>
+<div class="paragraph"><p>Ok, so let&#8217;s take a look at the compilation times.</p></div></aside></div></section><section id="_round_trip_reminder"><h2>Round trip (reminder)</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// Out - the outerermost of a deep nested, nasty case class structure
+def roundTrip(out: Out): (Json, Result[Out]) = {
+  val json = out.asJson // encode
+  val parsed = json.as[Out] // decode
+  json -&gt; parsed
+}</code></pre></div></div></div></section><section><div class="slide-content"><div class="imageblock"><img src="img/json-compilation-times-2.png" alt="Json Compilation Times" width="80%" height="80%"></div>
 <div class="paragraph small"><small>(less is better)</small></div>
 <aside class="notes"><div class="paragraph"><p>Perhaps at the times of Scala 2.12 the difference was bigger, but it seems that the compilation times on Scala 2.13 are close.</p></div>
 <div class="paragraph"><p>The small spike on hot JVM might be an error.</p></div>
@@ -690,7 +695,7 @@ jsoniterScalaSemi     10   4     8   1      s</code></pre></div></div></aside></
 <div class="paragraph small"><small>(more is better)</small></div>
 <aside class="notes"><div class="paragraph"><p>There are some small differences on Scala 2.13, Magnolia is a bit faster, but still, results are very close.</p></div>
 <div class="paragraph"><p>On Scala 3, semi-automatic Magnolia seem to doo better than semi-automatic Mirrors, curious, but automatic Magnolia is order or magnitude slower than even automatic Mirrors!</p></div>
-<div class="paragraph"><p>I suspect that it might be about inlining, a but too much inlining.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>Shapeless/Mirrors/Magnolia - different APIs, same approach.</p></div>
+<div class="paragraph"><p>I suspect that it might be about inlining, a bit too much inlining.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>Shapeless/Mirrors/Magnolia - different APIs, same approach.</p></div>
 <div class="paragraph"><p>Did anyone try something else?</p></div>
 <aside class="notes"><div class="paragraph"><p>It seems that Shapeless/Mirrors/Magnolia are offering mostly different APIs - we don&#8217;t care about that in this talk.</p></div>
 <div class="paragraph"><p>They have slightly different errors with semi-automatic derivation.</p></div>
@@ -850,7 +855,7 @@ case class Address(street: Street)
 case class User(name: String, address: Address)
 
 println(User("John", Address(Street("Paper St"))).showPretty())</code></pre></div></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">User(
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">User(
   name = "John",
   address = Address(
     street = Street(
@@ -860,7 +865,7 @@ println(User("John", Address(Street("Paper St"))).showPretty())</code></pre></di
 )</code></pre></div></div>
 <aside class="notes"><div class="paragraph"><p>Some of you might be familiar with <code>Show</code> type class - it&#8217;s basically toString but "better".</p></div>
 <div class="paragraph"><p>It also has a <code>ShowPretty</code> variant, which adds some nice indents.</p></div>
-<div class="paragraph"><p>I decided to use that pretty variant, but instead of concatenating Strings, like in the oroginal, I decidec I would be appending them to StringBuilder.</p></div>
+<div class="paragraph"><p>I decided to use that pretty variant, but instead of concatenating Strings, like in the original, I decided I would be appending them to StringBuilder.</p></div>
 <div class="paragraph"><p>This is how I&#8217;d like to use that type class, and what kind of output I&#8217;d like to see.</p></div></aside></div></section><section><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>automatic and semi-automatic derivation using <strong>Shapeless</strong> (Scala 2)</p></li><li class="fragment"><p>automatic and semi-automatic derivation using <strong>Mirror</strong> s (Scala 3)</p></li><li class="fragment"><p>automatic and semi-automatic derivation using <strong>Magnolia</strong> (Scala 2 &amp; 3)</p></li><li class="fragment"><p>sanely-automatic derivation with macros and <strong>Chimney macro commons</strong> (Scala 2 &amp; 3)</p></li></ul></div>
 <aside class="notes"><div class="paragraph"><p>Then I implemented it for</p></div>
 <div class="paragraph"><p>Shapeless on Scala 2</p></div>
@@ -895,6 +900,7 @@ showSanely                   14   4    16   5      s</code></pre></div></div></a
 [info] ShowOutputs.showMagnoliaAuto            thrpt   10  0.090 ± 0.023  ops/ms
 [info] ShowOutputs.showMagnoliaSemi            thrpt   10  3.918 ± 0.012  ops/ms
 [info] ShowOutputs.showSanely                  thrpt   10  2.204 ± 0.396  ops/ms</code></pre></div></div>
+<div class="paragraph small"><small>(more is better)</small></div>
 <aside class="notes"><div class="paragraph"><p>Similarly benchmarks, our naive sanely-automatic derivation isn&#8217;t terrible, but probably you would prefer anything else (other than automatic derivation on Scala 3).</p></div>
 <div class="paragraph"><p>So was it a failed experiment?</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph fragment"><p>But wait.</p></div>
 <div class="paragraph fragment"><p>Jsoniter had one more trick. It "caches" subroutines as <code>def</code> s.</p></div>
@@ -923,6 +929,7 @@ showSanely                    6   1     7   1      s</code></pre></div></div></a
 [info] ShowOutputs.showMagnoliaAuto            thrpt   10  0.090 ± 0.023  ops/ms
 [info] ShowOutputs.showMagnoliaSemi            thrpt   10  3.918 ± 0.012  ops/ms
 [info] ShowOutputs.showSanely                  thrpt   10  4.800 ± 0.042  ops/ms</code></pre></div></div>
+<div class="paragraph small"><small>(more is better)</small></div>
 <aside class="notes"><div class="paragraph"><p>Again, the fastest! The code that required as little ceremony as a single import is both the fastest to compile and the fastest to run!</p></div>
 <div class="paragraph"><p>But we haven&#8217;t talked about debugging these macros, did we?</p></div></aside></div></section><section id="_bonus_debugging" class="small"><h2>Bonus: debugging</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">case class Street(name: Either[String, Nothing]) // &lt;-- this should fail the derivation
 case class Address(street: Street)
@@ -930,11 +937,11 @@ case class User(name: String, address: Address)
 
 // scalacOptions += "-Xmacro-settings:fastshowpretty.logging=true"
 def printObject(out: User): String = out.showPretty()</code></pre></div></div>
-<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[error] .../ShowSanely.scala:12:54: Failed to derive showing for value : example.ShowSanely.User:
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">[error] .../ShowSanely.scala:12:54: Failed to derive showing for value : example.ShowSanely.User:
 [error] No build-in support nor implicit for type scala.Nothing
 [error]   def printObject(out: User): String = out.showPretty()
 [error]                                                      ^</code></pre></div></div>
-<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] .../ShowSanely.scala:12:54: Logs:
+<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">[info] .../ShowSanely.scala:12:54: Logs:
 [info]  - Started derivation for value : example.ShowSanely.User
 [info]  - Attempting rule ImplicitRule
 [info]  - Skipped summoning example.showmacros.FastShowPretty[example.ShowSanely.User]
