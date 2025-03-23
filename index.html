@@ -1013,6 +1013,69 @@ def printObject(out: User): String = out.showPretty()</code></pre></div></div>
 <div class="paragraph"><p>We are able to provide quite a good error message!</p></div>
 <div class="paragraph"><p>And with a single scalac option we can also take a look how the code is generated with a structured logging!</p></div>
 <div class="paragraph"><p>Even if we had some doubts after reading the error message with a whole log, we know exactly what happened.</p></div></aside></div></section></section>
+<section><section id="_what_changed"><h2>What changed?</h2></section><section id="_changes_to_givens_3_7_0"><h2>Changes to givens (3.7.0)</h2><div class="slide-content"><div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// an example of mature, production-grade library using these stuffs:
+import io.scalaland.chimney.dsl._
+import io.scalaland.chimney.Transformer
+
+case class Foo()
+case class Bar(a: Int)
+object Bar {
+  given t: Transformer[Foo, Bar] = _ =&gt; Bar(0)
+}
+
+Foo().transformInto[Bar]</code></pre></div></div>
+<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// before 3.7.0
+Bar(0)</code></pre></div></div>
+<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-none hljs" data-noescape="true">Now:
+Ambiguous given instances: both given instance t in object Bar
+and method deriveAutomatic in trait TransformerAutoDerivedCompanionPlatform
+match type io.scalaland.chimney.Transformer.AutoDerived[Foo, Bar]
+of parameter transformer of method transformInto
+in package io.scalaland.chimney.dsl</code></pre></div></div></div></section><section id="_however"><h2>However</h2><div class="slide-content"><div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// New utility!
+Expr.summonIgnoring[A](symbolsVarArgs)</code></pre></div></div>
+<div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// When looking for implicits
+//   io.scalaland.chimney.Transformer.derive
+// will be ignored - only user-provided implicits are considered!
+Expr.summonIgnoring[Target](
+  Symbol.classSymbol("io.scalaland.chimney.Transformer")
+    .companionModule
+    .methodMember("derive").head
+)</code></pre></div></div></div></section><section id="_so_in_general"><h2>So in general</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">trait TypeClass[A] {
+  // methods
+}
+object TypeClass {
+
+  given inline derive[A]: TypeClass[A] =
+    ${ macros[A] } // Derive code recursively using Expr.summonignoring
+                   // to avoid calling itself: users' implicits only!
+}</code></pre></div></div></div></section><section id="_benchmarks_for_2_13_20_vs_3_7_0_rc1"><h2>Benchmarks for 2.13.20 vs 3.7.0-RC1</h2></section><section><div class="slide-content"><div class="paragraph"><p>Scala 2.13.20</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] Benchmark                          Mode  Cnt   Score   Error   Units
+[info] JsonRoundTrips.circeGenericAuto   thrpt   10   8.392 ± 0.137  ops/ms
+[info] JsonRoundTrips.circeGenericSemi   thrpt   10   8.815 ± 0.121  ops/ms
+[info] JsonRoundTrips.circeMagnoliaAuto  thrpt   10   9.469 ± 0.165  ops/ms
+[info] JsonRoundTrips.circeMagnoliaSemi  thrpt   10   9.443 ± 0.143  ops/ms
+[info] JsonRoundTrips.jsoniterScalaSemi  thrpt   10  24.615 ± 0.101  ops/ms</code></pre></div></div>
+<div class="paragraph"><p>Scala 3.7.0-RC1</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] Benchmark                            Mode  Cnt   Score   Error   Units
+[info] JsonRoundTrips.circeGenericAuto     thrpt   10   3.394 ± 1.267  ops/ms
+[info] JsonRoundTrips.circeGenericSemi     thrpt   10   8.047 ± 0.096  ops/ms
+[info] JsonRoundTrips.circeMagnoliaAuto    thrpt   10   0.128 ± 0.062  ops/ms
+[info] JsonRoundTrips.circeMagnoliaSemi    thrpt   10   6.176 ± 0.104  ops/ms
+[info] JsonRoundTrips.jsoniterScalaSanely  thrpt   10  24.460 ± 0.149  ops/ms
+[info] JsonRoundTrips.jsoniterScalaSemi    thrpt   10  24.396 ± 0.116  ops/ms</code></pre></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>Scala 2.13.20</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] Benchmark                                Mode  Cnt  Score   Error   Units
+[info] ShowOutputs.showGenericProgrammingAuto  thrpt   10  5.584 ± 0.067  ops/ms
+[info] ShowOutputs.showGenericProgrammingSemi  thrpt   10  5.953 ± 0.057  ops/ms
+[info] ShowOutputs.showMagnoliaAuto            thrpt   10  6.702 ± 0.106  ops/ms
+[info] ShowOutputs.showMagnoliaSemi            thrpt   10  6.605 ± 0.289  ops/ms
+[info] ShowOutputs.showSanely                  thrpt   10  8.201 ± 0.078  ops/ms</code></pre></div></div>
+<div class="paragraph"><p>Scala 3.7.0-RC1</p></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">[info] Benchmark                                Mode  Cnt  Score   Error   Units
+[info] ShowOutputs.showGenericProgrammingAuto  thrpt   10  3.687 ± 1.588  ops/ms
+[info] ShowOutputs.showGenericProgrammingSemi  thrpt   10  6.291 ± 0.062  ops/ms
+[info] ShowOutputs.showMagnoliaAuto            thrpt   10  0.265 ± 0.194  ops/ms
+[info] ShowOutputs.showMagnoliaSemi            thrpt   10  8.316 ± 0.067  ops/ms
+[info] ShowOutputs.showSanely                  thrpt   10  9.191 ± 0.081  ops/ms</code></pre></div></div></div></section></section>
 <section id="_summary"><h2>Summary</h2><div class="slide-content"><aside class="notes"><div class="paragraph"><p>Last year&#8217;s survey showed that 53% of developers complained about compile times. That the effort should be made to make the compiler faster.</p></div>
 <div class="paragraph"><p>Perhaps, that&#8217;s not the compiler. Perhaps, we just did the derivation the wrong way.</p></div>
 <div class="paragraph"><p>We could see that through <em>great</em> effort automatic-derivation was optimized to be as performant as semi-automatic one on Scala 2.13. It took several years.</p></div>
