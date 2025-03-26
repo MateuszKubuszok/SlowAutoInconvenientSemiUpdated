@@ -1627,6 +1627,30 @@ object TypeClass {
 
 === !
 
+image::img/json-compilation-times-5.png[Show Compilation Times,80%,80%]
+
+[.small]
+(less is better)
+
+[NOTE.speaker]
+--
+Automatic derivation of Magnolia and Mirrors switched places, everythine else is the same.
+
+[source]
+----
+                     Scala 2   Scala 3  Units
+compilation of      cold hot  cold hot
+circeGenericAuto       3   1    15   9      s
+circeGenericSemi       3   1     2   0      s
+circeMagnoliaAuto      3   1    23  17      s
+circeMagnoliaSemi      3   0     3   0      s
+jsoniterScalaSanely    -   -     3   0      s
+jsoniterScalaSemi      2   0     2   0      s
+----
+--
+
+=== !
+
 Scala 2.13.20
 
 [source,scala]
@@ -1650,6 +1674,30 @@ Scala 3.7.0-RC1
 [info] JsonRoundTrips.circeMagnoliaSemi    thrpt   10   6.176 ± 0.104  ops/ms
 [info] JsonRoundTrips.jsoniterScalaSanely  thrpt   10  24.460 ± 0.149  ops/ms
 [info] JsonRoundTrips.jsoniterScalaSemi    thrpt   10  24.396 ± 0.116  ops/ms
+--
+
+=== !
+
+image::img/show-compilation-times-3.png[Show Compilation Times,80%,80%]
+
+[.small]
+(less is better)
+
+
+[NOTE.speaker]
+--
+Automatic derivation of Magnolia and Mirrors switched places, everythine else is the same.
+
+[source]
+----
+                            Scala 2   Scala 3  Units
+compilation of             cold hot  cold hot
+showGenericProgrammingAuto    3   1     7   3      s
+showGenericProgrammingSemi    2   0     2   0      s
+showMagnoliaAuto              2   0    14   8      s
+showMagnoliaSemi              2   0     2   0      s
+showSanely                    1   0     2   0      s
+----
 --
 
 === !
