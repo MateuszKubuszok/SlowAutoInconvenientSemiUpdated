@@ -781,7 +781,7 @@ object TypeClass {
 // NOT allowed to try summoning TypeClass.AutoDerived[Sth]!
 def derivedImpl[A: Type]: Expr[TypeClass[A]] = ...</code></pre></div></div>
 <div class="paragraph small fragment"><small>(Disclaimer: understanding this code is <strong>not</strong> necessary to understand its implications on the next slides)</small></div>
-<div class="paragraph small fragment"><small>(Solutions for <a href="https://www.scala-lang.org/2024/08/19/given-priority-change-3.7.html"><em>New Prioritization of Givens in Scala 3.7</em></a> available at the checkout)</small></div>
+<div class="paragraph small fragment"><small>(Solutions for <a href="https://www.scala-lang.org/2024/08/19/given-priority-change-3.7.html"><em>New Prioritization of Givens in Scala 3.7</em></a> in a moment)</small></div>
 <aside class="notes"><div class="paragraph"><p>We have 2 separate types: one is intended to be used by the /Users/dev, and one used only for automatic derivation.</p></div>
 <div class="paragraph"><p>Extension methods and other summoning should try to use the one we exposed to user, and then fallback on automatic derivation.</p></div>
 <div class="paragraph"><p>Both automatic and semiautomatic derivation can only use the type intended for users, so a macro never calls itself.</p></div>
@@ -1032,7 +1032,7 @@ and method deriveAutomatic in trait TransformerAutoDerivedCompanionPlatform
 match type io.scalaland.chimney.Transformer.AutoDerived[Foo, Bar]
 of parameter transformer of method transformInto
 in package io.scalaland.chimney.dsl</code></pre></div></div></div></section><section id="_however"><h2>However</h2><div class="slide-content"><div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// New utility!
-Expr.summonIgnoring[A](symbolsVarArgs)</code></pre></div></div>
+Expr.summonIgnoring[A](symbolsVarArgs*)</code></pre></div></div>
 <div class="listingblock fragment"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// When looking for implicits
 //   io.scalaland.chimney.Transformer.derive
 // will be ignored - only user-provided implicits are considered!

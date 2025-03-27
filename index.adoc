@@ -1076,7 +1076,7 @@ def derivedImpl[A: Type]: Expr[TypeClass[A]] = ...
 
 [%step]
 [.small]
-(Solutions for https://www.scala-lang.org/2024/08/19/given-priority-change-3.7.html[_New Prioritization of Givens in Scala 3.7_] available at the checkout)
+(Solutions for https://www.scala-lang.org/2024/08/19/given-priority-change-3.7.html[_New Prioritization of Givens in Scala 3.7_] in a moment)
 
 [NOTE.speaker]
 --
@@ -1592,7 +1592,7 @@ in package io.scalaland.chimney.dsl
 [source,scala]
 --
 // New utility!
-Expr.summonIgnoring[A](symbolsVarArgs)
+Expr.summonIgnoring[A](symbolsVarArgs*)
 --
 
 [%step]
