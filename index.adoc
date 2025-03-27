@@ -25,8 +25,8 @@ In this presentation, I'll try to show that all of these issues are not some inh
 == About me
 
 [%step]
-* breaking things in Scala for 9 years
-* a little bit of open source - including co-authoring Chimney for over 7 years now
+* breaking things in Scala for 10 years
+* a little bit of open source - including co-authoring Chimney for 8 years
 * blog at https://kubuszok.com[Kubuszok.com]
 * niche https://leanpub.com/jvm-scala-book[Things you need to know about JVM (that matter in Scala)] ebook
 
